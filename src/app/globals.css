@@ -1,0 +1,284 @@
+@import "tailwindcss";
+@import "./palettes.css";
+
+/* B&G Time palette — Toolbench: fills, hairlines, type scale */
+
+:root {
+  --background: #eef0f4;
+  --background-deep: #e6e9ef;
+  --background-soft: #f4f6f9;
+  --foreground: #10141c;
+  --card: #ffffff;
+  --card-foreground: #10141c;
+  --muted: #f4f6f9;
+  --muted-foreground: #5b6675;
+  --secondary-foreground: #39424f;
+  --border: rgb(15 23 42 / 0.12);
+  --border-strong: rgb(15 23 42 / 0.2);
+  --border-soft: rgb(15 23 42 / 0.07);
+  --ring: #315fbb;
+  --accent: #0c2048;
+  --accent-hover: #16356e;
+  --accent-soft: rgb(12 32 72 / 0.09);
+  --accent-foreground: #ffffff;
+  --destructive: #9c343c;
+  --destructive-soft: #f9e9ea;
+  --destructive-foreground: #ffffff;
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-panel: 16px;
+  /* Resting elevation for panels/cards, distinct from --overlay-shadow. */
+  --card-shadow: 0 1px 0 rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.06);
+
+  --success: #1f6b4a;
+  --success-soft: #e4efe9;
+  --warning: #8a5010;
+  --warning-soft: #f8eddf;
+
+  --chart-1: #0c2048;
+  --chart-2: #315fbb;
+  --chart-3: #1f6b4a;
+  --chart-4: #8a5010;
+  --chart-5: #9c343c;
+  --chart-6: #5b6675;
+  --chart-7: #16356e;
+  --chart-8: #4a7fd4;
+  --chart-positive: #1f6b4a;
+  --chart-negative: #9c343c;
+  --chart-neutral: #5b6675;
+  --chart-warning: #8a5010;
+  --chart-grid: rgb(15 23 42 / 0.08);
+  /* Axis ticks are normal-size text, so this has to clear WCAG 4.5:1 on the
+     card. The previous #7b8593 only reached 3.74:1; this is 4.66:1. */
+  --chart-axis: #6b7585;
+  /* Readable ink for labels drawn ON TOP of a --chart-* fill. Light theme
+     fills are deep navy, so labels invert to near-white. */
+  --chart-label: #ffffff;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-fg: #10141c;
+  --chart-tooltip-border: rgb(15 23 42 / 0.12);
+  --overlay-shadow: 0 12px 32px rgb(15 23 42 / 0.14);
+
+  --sidebar-bg: rgb(249 250 252 / 0.92);
+  --sidebar-active: rgb(12 32 72 / 0.07);
+  --sidebar-hover: rgb(15 23 42 / 0.05);
+  --header-bg: rgb(249 250 252 / 0.86);
+  --page-gutter: 32px;
+  --section-gap: 20px;
+}
+
+.dark {
+  --background: #161e2e;
+  --background-deep: #121826;
+  --background-soft: #1b2334;
+  --foreground: #f4f6fa;
+  --card: #1f2839;
+  --card-foreground: #f4f6fa;
+  --muted: #1b2334;
+  --muted-foreground: #a2acbd;
+  --secondary-foreground: #cdd5e1;
+  --border: rgb(255 255 255 / 0.13);
+  --border-strong: rgb(255 255 255 / 0.22);
+  --border-soft: rgb(255 255 255 / 0.08);
+  --ring: #93b4ff;
+  --accent: #93a9d6;
+  --accent-hover: #adbfe4;
+  --accent-soft: rgb(147 169 214 / 0.18);
+  --accent-foreground: #121826;
+  --destructive: #e99ba1;
+  --destructive-soft: rgb(233 155 161 / 0.16);
+  /* Dark-theme destructive fill is a light pink, so its ink must go dark. */
+  --destructive-foreground: #121826;
+  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04), 0 10px 28px rgb(0 0 0 / 0.28);
+
+  --success: #7cc79d;
+  --success-soft: rgb(124 199 157 / 0.16);
+  --warning: #e0a45e;
+  --warning-soft: rgb(224 164 94 / 0.16);
+
+  --chart-1: #93a9d6;
+  --chart-2: #93b4ff;
+  --chart-3: #7cc79d;
+  --chart-4: #e0a45e;
+  --chart-5: #e99ba1;
+  --chart-6: #a2acbd;
+  --chart-7: #adbfe4;
+  --chart-8: #cdd5e1;
+  --chart-positive: #7cc79d;
+  --chart-negative: #e99ba1;
+  --chart-neutral: #a2acbd;
+  --chart-warning: #e0a45e;
+  --chart-grid: rgb(255 255 255 / 0.08);
+  /* 4.46:1 on the dark card was fractionally under the bar; this is 5.46:1. */
+  --chart-axis: #939eb0;
+  /* Dark theme fills are light pastels — labels must go dark, not white. */
+  --chart-label: #121826;
+  --chart-tooltip-bg: #1f2839;
+  --chart-tooltip-fg: #f4f6fa;
+  --chart-tooltip-border: rgb(255 255 255 / 0.13);
+  --overlay-shadow: 0 14px 36px rgb(0 0 0 / 0.4);
+
+  --sidebar-bg: rgb(24 32 47 / 0.96);
+  --sidebar-active: rgb(255 255 255 / 0.11);
+  --sidebar-hover: rgb(255 255 255 / 0.06);
+  --header-bg: rgb(24 32 47 / 0.88);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-background-soft: var(--background-soft);
+  --color-background-deep: var(--background-deep);
+  --color-border-strong: var(--border-strong);
+  --color-border-soft: var(--border-soft);
+  --color-chart-label: var(--chart-label);
+  --color-destructive-foreground: var(--destructive-foreground);
+  /* Literal values: Tailwind's theme namespace shares the --radius-* prefix
+     with the root tokens above, so referencing them here would be circular.
+     Components target the root tokens directly, e.g. rounded-[var(--radius)]. */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -0.006em;
+  /* Manrope ships kern/liga/calt. It has no ss01 or cv11 — those are Inter and
+     Geist stylistic sets, so requesting them here was a no-op. */
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Figures that sit in columns or tick up and down must not reflow as digits
+   change: KPI values, table cells, axis ticks, legend values. */
+.tabular,
+.recharts-cartesian-axis-tick-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Recharts polish */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--chart-grid);
+}
+
+.recharts-text {
+  fill: var(--chart-axis) !important;
+  font-size: 12px !important;
+  font-family: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif !important;
+  /* Axis ticks are numeric columns — proportional digits make them jitter. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Recharts marks the surface and inner layers focusable so keyboard users can
+   walk data points. The browser's default ring draws the focused layer's
+   bounding box, which reads as a stray selection rectangle across the plot.
+   Suppress the inner boxes and show one token ring on the surface instead. */
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible,
+.recharts-surface:focus,
+.recharts-layer:focus {
+  outline: none;
+}
+
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Custom SVG charts (trees, dependency graphs, etc.) live inside a surface
+   that clips overflow. The browser's default focus rectangle is square and
+   paints outside the node, so it reads as a selection box with chopped
+   corners — especially on the leftmost chip of a horizontal tree. */
+.chart-surface svg:focus,
+.chart-surface svg :focus,
+.chart-surface svg:focus-visible,
+.chart-surface svg :focus-visible,
+[data-chart-svg] svg:focus,
+[data-chart-svg] svg :focus {
+  outline: none;
+}
+
+.recharts-legend-wrapper {
+  padding-top: 4px !important;
+}
+
+.recharts-legend-item {
+  margin-right: 12px !important;
+}
+
+/* Recharts inlines the series color on the legend label and inherits the body
+   size, which gives a chart four differently-coloured 15px labels. The swatch
+   already carries the colour, so the text stays neutral and small. */
+.recharts-legend-item-text {
+  color: var(--muted-foreground) !important;
+  font-size: 12px !important;
+  letter-spacing: -0.004em;
+}
+
+.recharts-legend-item .recharts-surface {
+  width: 10px !important;
+  height: 10px !important;
+  margin-right: 5px !important;
+}
+
+.recharts-default-tooltip {
+  background: var(--chart-tooltip-bg) !important;
+  border: 1px solid var(--chart-tooltip-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--overlay-shadow) !important;
+  color: var(--chart-tooltip-fg) !important;
+  padding: 10px 12px !important;
+}
+
+.recharts-tooltip-wrapper {
+  z-index: 20;
+}
+
+/* Chart content breathing room — keep block layout for Recharts measure */
+.chart-surface {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart-surface > .recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 780px) {
+  :root {
+    --page-gutter: 16px;
+    --section-gap: 16px;
+  }
+}

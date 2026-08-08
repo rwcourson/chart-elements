@@ -1,0 +1,75 @@
+{
+  "name": "chart-elements",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Power BI–style data visualization component suite for Next.js and Tailwind CSS, with light/dark theming driven entirely by CSS variables.",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "nextjs",
+    "tailwindcss",
+    "dataviz",
+    "charts",
+    "recharts",
+    "d3",
+    "dashboard",
+    "power-bi",
+    "components"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./charts": "./src/components/charts/index.ts",
+    "./cards": "./src/components/cards/index.ts",
+    "./tables": "./src/components/tables/index.ts",
+    "./slicers": "./src/components/slicers/index.ts",
+    "./maps": "./src/components/maps/index.ts",
+    "./analytics": "./src/components/analytics/index.ts",
+    "./navigation": "./src/components/navigation/index.ts",
+    "./shapes": "./src/components/shapes/index.ts",
+    "./overlays": "./src/components/overlays/index.ts",
+    "./ui": "./src/components/ui/index.ts",
+    "./theme": "./src/components/providers/index.ts",
+    "./sample-data": "./src/lib/sample-data.ts",
+    "./styles.css": "./src/app/globals.css"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "catalog": "node scripts/generate-catalog.mjs",
+    "verify": "pnpm typecheck && pnpm lint && pnpm build"
+  },
+  "dependencies": {
+    "@types/d3": "^7.4.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.30.0",
+    "next": "16.3.0",
+    "next-themes": "^0.4.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "packageManager": "pnpm@10.30.3"
+}
