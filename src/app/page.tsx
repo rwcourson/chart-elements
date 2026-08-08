@@ -27,7 +27,7 @@ export default function HomePage() {
         style={{ paddingInline: "var(--page-gutter)" }}
       >
         <Badge variant="secondary" className="w-fit">
-          Next.js · Tailwind · B&amp;G Time palette
+          Next.js · Tailwind · Berry palette
         </Badge>
         <div className="max-w-2xl space-y-4">
           <h1 className="text-[clamp(32px,3.4vw,40px)] font-bold leading-[1.15] tracking-[-0.03em]">

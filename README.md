@@ -16,7 +16,7 @@ pnpm dev
 - Home — `/`
 - Gallery (every visual) — `/gallery`
 
-In the header you can switch **light/dark** and preview **chart palettes** (B&G Time, Ocean, Sunset, Forest, Slate, Vivid, Berry). Palette choice is stored in `localStorage` and applied via `data-palette` on `<html>`.
+In the header you can switch **light/dark** and preview **chart palettes** (Berry default, plus B&G Time, Ocean, Sunset, Forest, Slate, Vivid). Palette choice is stored in `localStorage` and applied via `data-palette` on `<html>`.
 
 ## Status
 
@@ -124,7 +124,7 @@ Light/dark is wired with `next-themes`; wrap your app in `ThemeProvider` and dro
 
 ### Preview palettes (demo site)
 
-The gallery ships a `PalettePicker` that swaps accent + chart series via `html[data-palette="…"]` overrides in `src/app/palettes.css`. Defaults to **B&G Time**. Useful for stakeholder previews; product apps usually pin one brand palette in CSS instead.
+The gallery ships a `PalettePicker` that swaps accent + chart series via `html[data-palette="…"]` overrides in `src/app/palettes.css`. Defaults to **Berry**. Useful for stakeholder previews; product apps usually pin one brand palette in CSS instead.
 
 ## Structure
 

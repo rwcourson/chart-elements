@@ -1,7 +1,10 @@
 /*
  * Demo palette overrides. Surfaces stay on the B&G Time light/dark shell;
  * accent + chart series swap so the gallery can preview popular looks quickly.
- * Default (no data-palette / bg-time) uses the tokens in globals.css.
+ *
+ * Site default is Berry (`data-palette="berry"`). Bare `:root` / `.dark` (no
+ * attribute, or after picking B&G Time) is the classic navy token set in
+ * globals.css.
  */
 
 /* ——— Ocean ——— */

@@ -153,7 +153,7 @@ Charts resolve colors through `var(--chart-N)` (`src/lib/chart-colors.ts`), so c
 
 The gallery/home header includes a **Chart palette** control (`PalettePicker`) that sets `data-palette` on `<html>` and persists to `localStorage` (`ce-palette`). Overrides live in `src/app/palettes.css`.
 
-Built-in ids: `bg-time` (default), `ocean`, `sunset`, `forest`, `slate`, `vivid`, `berry`.
+Built-in ids: `berry` (default), `bg-time`, `ocean`, `sunset`, `forest`, `slate`, `vivid`.
 
 To reuse the picker in your shell:
 

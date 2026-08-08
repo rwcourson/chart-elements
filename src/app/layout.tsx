@@ -32,10 +32,11 @@ export default function RootLayout({
       className={`${manrope.variable} ${geistMono.variable} h-full`}
     >
       <body className="min-h-full bg-background font-sans text-foreground antialiased">
-        {/* Apply stored demo palette before paint so the gallery doesn't flash B&G Time. */}
+        {/* Apply stored (or default Berry) palette before paint — Berry lives on
+            data-palette, so first visits must set the attribute, not leave bare :root. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var p=localStorage.getItem("ce-palette");if(p)document.documentElement.setAttribute("data-palette",p);}catch(e){}})();`,
+            __html: `(function(){try{var p=localStorage.getItem("ce-palette")||"berry";if(p==="bg-time")document.documentElement.removeAttribute("data-palette");else document.documentElement.setAttribute("data-palette",p);}catch(e){document.documentElement.setAttribute("data-palette","berry");}})();`,
           }}
         />
         <ThemeProvider
