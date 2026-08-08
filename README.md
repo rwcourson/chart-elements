@@ -11,6 +11,8 @@ pnpm install
 pnpm dev
 ```
 
+- **Live demo:** [chart-elements.vercel.app](https://chart-elements.vercel.app) (Vercel · BG Rob)
+- Repo: [github.com/rwcourson/chart-elements](https://github.com/rwcourson/chart-elements)
 - Home — `/`
 - Gallery (every visual) — `/gallery`
 
