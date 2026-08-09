@@ -18,6 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_COLORS, colorAt, SEMANTIC } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import { salesByRegion, stackedSeries } from "@/lib/sample-data";
 import { formatCompact, formatPercent } from "@/lib/utils";
 import { ChartEmpty } from "./chart-frame";
@@ -28,6 +29,29 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="h-full w-full [&_.recharts-cartesian-grid_line]:stroke-[var(--chart-grid)]">
       {children}
     </div>
+  );
+}
+
+// Depth without color math: the fill eases to 82% opacity toward the
+// baseline, which reads as a soft side light on these horizontal bars.
+// Ids carry a per-instance uid so two charts never share a <defs> entry.
+function BarGradients({ uid, colors }: { uid: string; colors: string[] }) {
+  return (
+    <defs>
+      {colors.map((color, i) => (
+        <linearGradient
+          key={i}
+          id={`polar-${uid}-${i}`}
+          x1="0"
+          y1="0"
+          x2="1"
+          y2="0"
+        >
+          <stop offset="0%" stopColor={color} stopOpacity={1} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.82} />
+        </linearGradient>
+      ))}
+    </defs>
   );
 }
 
@@ -129,6 +153,9 @@ export function RadarChart({ data = defaultRadar, keys = ["current", "target"] a
   data?: typeof defaultRadar;
   keys?: readonly string[];
 }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
@@ -140,9 +167,26 @@ export function RadarChart({ data = defaultRadar, keys = ["current", "target"] a
               rings carry the scale; exact values come from the tooltip. */}
           <PolarRadiusAxis tick={false} axisLine={false} />
           <Tooltip content={<ChartTooltip />} />
-          <Legend iconType="circle" formatter={legendLabel} />
+          <Legend
+            iconType="circle"
+            formatter={legendLabel}
+            {...hover.legendHandlers}
+          />
           {keys.map((k, i) => (
-            <Radar key={k} name={k} dataKey={k} stroke={colorAt(i)} fill={colorAt(i)} fillOpacity={0.2} strokeWidth={2} />
+            <Radar
+              key={k}
+              name={k}
+              dataKey={k}
+              stroke={colorAt(i)}
+              strokeWidth={2.25}
+              strokeLinecap="round"
+              strokeOpacity={hover.opacityFor(k)}
+              fill={colorAt(i)}
+              fillOpacity={0.2 * hover.opacityFor(k)}
+              activeDot={{ r: 4, strokeWidth: 0 }}
+              {...anim}
+              {...hover.bind(k)}
+            />
           ))}
         </RechartsRadarChart>
       </ResponsiveContainer>
@@ -298,16 +342,36 @@ export function BumpChart({ data = defaultBump }: { data?: typeof defaultBump })
 
 export function ButterflyChart({ data = salesByRegion }: { data?: typeof salesByRegion }) {
   const shaped = data.map((d) => ({ name: d.name, left: -d.target, right: d.sales }));
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={shaped} layout="vertical" margin={{ top: 8, right: 12, left: 0, bottom: 0 }} stackOffset="sign">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <BarGradients uid={uid} colors={[SEMANTIC.negative, SEMANTIC.positive]} />
+          <CartesianGrid horizontal={false} />
           <XAxis type="number" tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="name" width={56} tickLine={false} axisLine={false} />
           <Tooltip content={<ChartTooltip valueFormatter={(n) => formatCompact(Math.abs(n))} />} />
-          <Bar dataKey="left" stackId="b" fill={SEMANTIC.negative} radius={[4, 0, 0, 4]} />
-          <Bar dataKey="right" stackId="b" fill={SEMANTIC.positive} radius={[0, 4, 4, 0]} />
+          <Bar
+            dataKey="left"
+            stackId="b"
+            fill={`url(#polar-${uid}-0)`}
+            fillOpacity={hover.opacityFor("left")}
+            radius={[4, 0, 0, 4]}
+            {...anim}
+            {...hover.bind("left")}
+          />
+          <Bar
+            dataKey="right"
+            stackId="b"
+            fill={`url(#polar-${uid}-1)`}
+            fillOpacity={hover.opacityFor("right")}
+            radius={[0, 4, 4, 0]}
+            {...anim}
+            {...hover.bind("right")}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Shell>
@@ -319,6 +383,9 @@ export function TornadoChart(props: React.ComponentProps<typeof ButterflyChart>)
 }
 
 export function PopulationPyramid() {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const male = [
     { age: "0-9", value: -22 },
     { age: "10-19", value: -18 },
@@ -347,13 +414,32 @@ export function PopulationPyramid() {
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 8, right: 12, left: 0, bottom: 0 }} stackOffset="sign">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <BarGradients uid={uid} colors={[CHART_COLORS[1], CHART_COLORS[4]]} />
+          <CartesianGrid horizontal={false} />
           <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(v) => formatCompact(Math.abs(Number(v)))} />
           <YAxis type="category" dataKey="age" width={48} tickLine={false} axisLine={false} />
           <Tooltip content={<ChartTooltip valueFormatter={(n) => formatCompact(Math.abs(n))} />} />
-          <Legend iconType="circle" formatter={legendLabel} />
-          <Bar dataKey="male" stackId="p" fill={CHART_COLORS[1]} />
-          <Bar dataKey="female" stackId="p" fill={CHART_COLORS[4]} />
+          <Legend
+            iconType="circle"
+            formatter={legendLabel}
+            {...hover.legendHandlers}
+          />
+          <Bar
+            dataKey="male"
+            stackId="p"
+            fill={`url(#polar-${uid}-0)`}
+            fillOpacity={hover.opacityFor("male")}
+            {...anim}
+            {...hover.bind("male")}
+          />
+          <Bar
+            dataKey="female"
+            stackId="p"
+            fill={`url(#polar-${uid}-1)`}
+            fillOpacity={hover.opacityFor("female")}
+            {...anim}
+            {...hover.bind("female")}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Shell>
@@ -361,6 +447,10 @@ export function PopulationPyramid() {
 }
 
 export function DivergingBarChart({ data = defaultLikert }: { data?: typeof defaultLikert }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   if (!data.length) {
     return (
       <Shell>
@@ -386,7 +476,8 @@ export function DivergingBarChart({ data = defaultLikert }: { data?: typeof defa
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 0, bottom: 0 }} stackOffset="sign">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <BarGradients uid={uid} colors={[SEMANTIC.negative, SEMANTIC.neutral, SEMANTIC.positive]} />
+          <CartesianGrid horizontal={false} />
           <XAxis
             type="number"
             domain={[from, to]}
@@ -398,10 +489,35 @@ export function DivergingBarChart({ data = defaultLikert }: { data?: typeof defa
           <YAxis type="category" dataKey="topic" width={64} tickLine={false} axisLine={false} />
           <Tooltip content={<ChartTooltip valueFormatter={(n) => `${Math.abs(n)}%`} />} />
           {/* Three unlabelled colours are not readable on their own. */}
-          <Legend iconType="circle" formatter={legendLabel} />
-          <Bar dataKey="disagree" stackId="d" fill={SEMANTIC.negative} />
-          <Bar dataKey="neutral" stackId="d" fill={SEMANTIC.neutral} />
-          <Bar dataKey="agree" stackId="d" fill={SEMANTIC.positive} />
+          <Legend
+            iconType="circle"
+            formatter={legendLabel}
+            {...hover.legendHandlers}
+          />
+          <Bar
+            dataKey="disagree"
+            stackId="d"
+            fill={`url(#polar-${uid}-0)`}
+            fillOpacity={hover.opacityFor("disagree")}
+            {...anim}
+            {...hover.bind("disagree")}
+          />
+          <Bar
+            dataKey="neutral"
+            stackId="d"
+            fill={`url(#polar-${uid}-1)`}
+            fillOpacity={hover.opacityFor("neutral")}
+            {...anim}
+            {...hover.bind("neutral")}
+          />
+          <Bar
+            dataKey="agree"
+            stackId="d"
+            fill={`url(#polar-${uid}-2)`}
+            fillOpacity={hover.opacityFor("agree")}
+            {...anim}
+            {...hover.bind("agree")}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Shell>

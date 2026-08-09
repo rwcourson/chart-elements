@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -11,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import { ChartTooltip, legendLabel } from "./chart-tooltip";
 
 export type BarColumnVariant =
@@ -53,6 +55,12 @@ export function BarColumnChart({
   const percent = variant.includes("percent");
   const chartData = percent ? toPercent(data, seriesKeys) : data;
 
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  // Gradient ids must be unique per instance — two charts sharing a series key
+  // on one page would otherwise reference the same <defs>.
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -63,9 +71,35 @@ export function BarColumnChart({
         // Clustered bars share a narrow band; a wide gap starves each bar.
         barGap={stacked ? 0 : 2}
       >
-        {/* Gridlines belong on the value axis, which flips with the layout. */}
+        <defs>
+          {seriesKeys.map((key, i) => (
+            // Depth without color math: the fill eases to 82% opacity toward
+            // the baseline, which reads as a soft top light on both themes.
+            <linearGradient
+              key={key}
+              id={`bar-${uid}-${i}`}
+              x1="0"
+              y1="0"
+              x2={isBar ? "1" : "0"}
+              y2={isBar ? "0" : "1"}
+            >
+              <stop
+                offset="0%"
+                stopColor={CHART_COLORS[i % CHART_COLORS.length]}
+                stopOpacity={1}
+              />
+              <stop
+                offset="100%"
+                stopColor={CHART_COLORS[i % CHART_COLORS.length]}
+                stopOpacity={0.82}
+              />
+            </linearGradient>
+          ))}
+        </defs>
+        {/* Gridlines belong on the value axis, which flips with the layout.
+            Solid hairlines, not dashes — the faint --chart-grid color carries
+            the quiet; dashes just add noise. */}
         <CartesianGrid
-          strokeDasharray="3 3"
           horizontal={!isBar}
           vertical={isBar}
         />
@@ -99,6 +133,7 @@ export function BarColumnChart({
         <Tooltip
           content={
             <ChartTooltip
+              showTotal={stacked && !percent}
               valueFormatter={
                 percent
                   ? (n) => `${Math.round(n * 100)}%`
@@ -107,17 +142,26 @@ export function BarColumnChart({
             />
           }
         />
-        {showLegend ? <Legend iconType="circle" formatter={legendLabel} /> : null}
+        {showLegend ? (
+          <Legend
+            iconType="circle"
+            formatter={legendLabel}
+            {...hover.legendHandlers}
+          />
+        ) : null}
         {seriesKeys.map((key, i) => (
           <Bar
             key={key}
             dataKey={key}
             stackId={stacked ? "a" : undefined}
-            fill={CHART_COLORS[i % CHART_COLORS.length]}
-            radius={stacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
+            fill={`url(#bar-${uid}-${i})`}
+            fillOpacity={hover.opacityFor(key)}
+            radius={stacked ? [0, 0, 0, 0] : isBar ? [0, 4, 4, 0] : [4, 4, 0, 0]}
             maxBarSize={36}
             // Keeps a dense cluster from collapsing into hairlines.
             minPointSize={1}
+            {...anim}
+            {...hover.bind(key)}
           />
         ))}
       </BarChart>

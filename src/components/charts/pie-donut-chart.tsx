@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { colorAt, SEMANTIC } from "@/lib/chart-colors";
+import { useChartAnimation } from "@/lib/chart-motion";
 import { ChartTooltip } from "./chart-tooltip";
 
 const RAD = Math.PI / 180;
@@ -107,13 +108,20 @@ export function PieDonutChart({
   }, [data, nameKey, valueKey, maxSlices]);
 
   const withLegend = showLegend ?? !showLabels;
+  const anim = useChartAnimation();
 
   return (
     <div className="flex h-full w-full flex-col">
       {/* The plot owns its own box so the pie is centred in it. That lets the
           donut's inner label be a plain centred overlay, and keeps the legend
           out of the SVG where its type and colour can't be styled properly. */}
-      <div className="relative min-h-0 flex-1">
+      {/*
+        ce-pie: hover isolation is pure CSS (globals.css). Driving it from
+        React state re-runs Recharts' sector animation on every hover, and
+        Recharts hides labels while animating — the callouts flickered off
+        on every hover.
+      */}
+      <div className="ce-pie relative min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip content={<ChartTooltip />} />
@@ -129,10 +137,12 @@ export function PieDonutChart({
               // Leaves a gutter wide enough for the callouts; without it the
               // labels render outside the SVG viewport and are clipped.
               outerRadius={showLabels ? "70%" : "82%"}
-              paddingAngle={2}
+              // No paddingAngle wedge: the card-coloured stroke already draws
+              // a clean straight divider between slices.
+              paddingAngle={0}
               stroke="var(--card)"
               strokeWidth={2}
-              isAnimationActive={false}
+              {...anim}
               label={showLabels ? (Callout as never) : false}
               labelLine={false}
             >

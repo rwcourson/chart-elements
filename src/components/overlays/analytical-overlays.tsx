@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { useChartAnimation } from "@/lib/chart-motion";
 import { timeSeries } from "@/lib/sample-data";
 import { ChartEmpty } from "@/components/charts/chart-frame";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
@@ -32,7 +33,7 @@ type RefLabelProps = {
 function ReferenceLabel({ viewBox, value, orientation = "horizontal" }: RefLabelProps) {
   if (viewBox == null || value == null || value === "") return null;
   const text = String(value);
-  const { x = 0, y = 0, width = 0, height = 0 } = viewBox;
+  const { x = 0, y = 0, width = 0 } = viewBox;
   const padX = 6;
   const padY = 3;
   const fontSize = 11;
@@ -132,17 +133,27 @@ export function ReferenceLinesChart({
   const mx = values.length ? Math.max(...values) : 0;
   const sorted = [...values].sort((a, b) => a - b);
   const med = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  const anim = useChartAnimation();
 
   if (values.length === 0) return <ChartEmpty />;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
-        <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="revenue"
+          stroke={CHART_COLORS[0]}
+          strokeWidth={2.25}
+          strokeLinecap="round"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+          {...anim}
+        />
         {average ? (
           <ReferenceLine y={avg} stroke={CHART_COLORS[1]} strokeDasharray="4 4" label={refLabel("Avg")} />
         ) : null}
@@ -190,10 +201,11 @@ export function DynamicReferenceLine() {
   return <ReferenceLinesChart average max />;
 }
 export function XAxisReferenceLine() {
+  const anim = useChartAnimation();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={timeSeries} margin={{ top: 20, right: 12, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
@@ -202,7 +214,16 @@ export function XAxisReferenceLine() {
           stroke={CHART_COLORS[5]}
           label={refLabel("Event", "vertical")}
         />
-        <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="revenue"
+          stroke={CHART_COLORS[0]}
+          strokeWidth={2.25}
+          strokeLinecap="round"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+          {...anim}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -212,6 +233,7 @@ export function YAxisReferenceLine() {
 }
 
 export function ErrorBarsOverlay() {
+  const anim = useChartAnimation();
   const data = timeSeries.map((d) => ({
     ...d,
     low: d.revenue * 0.92,
@@ -220,13 +242,22 @@ export function ErrorBarsOverlay() {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
-        <Line type="monotone" dataKey="high" stroke="transparent" dot={false} />
-        <Line type="monotone" dataKey="low" stroke="transparent" dot={false} />
-        <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot />
+        <Line type="monotone" dataKey="high" stroke="transparent" dot={false} {...anim} />
+        <Line type="monotone" dataKey="low" stroke="transparent" dot={false} {...anim} />
+        <Line
+          type="monotone"
+          dataKey="revenue"
+          stroke={CHART_COLORS[0]}
+          strokeWidth={2.25}
+          strokeLinecap="round"
+          dot
+          activeDot={{ r: 4, strokeWidth: 0 }}
+          {...anim}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

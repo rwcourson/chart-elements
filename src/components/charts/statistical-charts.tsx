@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_COLORS, colorAt } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import {
   distribution,
   matrixRows,
@@ -419,15 +420,41 @@ function BoxPlotSvg({ data = defaultBox }: { data?: typeof defaultBox }) {
 }
 
 export function Histogram({ data = defaultHist }: { data?: typeof defaultHist }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <defs>
+            {/* Depth without color math: the fill eases to 82% opacity toward
+                the baseline, which reads as a soft top light on both themes. */}
+            <linearGradient id={`hist-${uid}-0`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CHART_COLORS[0]} stopOpacity={1} />
+              <stop offset="100%" stopColor={CHART_COLORS[0]} stopOpacity={0.82} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Bar dataKey="count" fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} maxBarSize={32} />
+          <Bar
+            dataKey="count"
+            fill={`url(#hist-${uid}-0)`}
+            radius={[4, 4, 0, 0]}
+            maxBarSize={32}
+            {...anim}
+          >
+            {data.map((d) => (
+              <Cell
+                key={d.name}
+                fillOpacity={hover.opacityFor(d.name)}
+                {...hover.bind(d.name)}
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </Shell>
@@ -435,11 +462,13 @@ export function Histogram({ data = defaultHist }: { data?: typeof defaultHist })
 }
 
 export function DensityPlot({ data = defaultKde }: { data?: typeof defaultKde }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis
             dataKey="x"
             tickLine={false}
@@ -450,7 +479,17 @@ export function DensityPlot({ data = defaultKde }: { data?: typeof defaultKde })
           />
           <YAxis tickLine={false} axisLine={false} width={44} tickMargin={6} tickFormatter={formatAxisNumber} />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="density" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.25} strokeWidth={2} />
+          <Area
+            type="monotone"
+            dataKey="density"
+            stroke={CHART_COLORS[1]}
+            fill={CHART_COLORS[1]}
+            fillOpacity={0.25}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </Shell>
@@ -458,6 +497,7 @@ export function DensityPlot({ data = defaultKde }: { data?: typeof defaultKde })
 }
 
 export function KernelDensityPlot({ values = defaultValues }: { values?: number[] }) {
+  const anim = useChartAnimation();
   const data = kdeLine(values);
 
   if (data.length === 0) {
@@ -477,7 +517,7 @@ export function KernelDensityPlot({ values = defaultValues }: { values?: number[
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis
             dataKey="x"
             tickLine={false}
@@ -496,7 +536,16 @@ export function KernelDensityPlot({ values = defaultValues }: { values?: number[
             tickFormatter={formatAxisNumber}
           />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="density" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
+          <Line
+            type="monotone"
+            dataKey="density"
+            stroke={CHART_COLORS[2]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -1106,15 +1155,26 @@ export function Dendrogram({ tree = defaultCluster }: { tree?: TreeDatum }) {
 }
 
 export function SurvivalCurve({ data = defaultSurvival }: { data?: typeof defaultSurvival }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="t" tickLine={false} axisLine={false} />
           <YAxis domain={[0, 1]} tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="stepAfter" dataKey="survival" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+          <Line
+            type="stepAfter"
+            dataKey="survival"
+            stroke={CHART_COLORS[0]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -1122,15 +1182,26 @@ export function SurvivalCurve({ data = defaultSurvival }: { data?: typeof defaul
 }
 
 export function ROCCurve({ data = defaultRoc }: { data?: typeof defaultRoc }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="fpr" tickLine={false} axisLine={false} />
           <YAxis domain={[0, 1]} tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="tpr" stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ r: 3 }} />
+          <Line
+            type="monotone"
+            dataKey="tpr"
+            stroke={CHART_COLORS[1]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -1138,15 +1209,26 @@ export function ROCCurve({ data = defaultRoc }: { data?: typeof defaultRoc }) {
 }
 
 export function PrecisionRecallCurve({ data = defaultPr }: { data?: typeof defaultPr }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="recall" tickLine={false} axisLine={false} />
           <YAxis domain={[0, 1]} tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="precision" stroke={CHART_COLORS[3]} strokeWidth={2} dot={{ r: 3 }} />
+          <Line
+            type="monotone"
+            dataKey="precision"
+            stroke={CHART_COLORS[3]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -1154,6 +1236,7 @@ export function PrecisionRecallCurve({ data = defaultPr }: { data?: typeof defau
 }
 
 export function QQPlot({ data = defaultValues }: { data?: number[] }) {
+  const anim = useChartAnimation();
   const sorted = [...data].sort(d3.ascending);
   const n = sorted.length;
   const normalSample = d3.range(100).map((j) => {
@@ -1178,11 +1261,11 @@ export function QQPlot({ data = defaultValues }: { data?: number[] }) {
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid />
           <XAxis type="number" dataKey="theoretical" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="sample" tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Scatter data={points} fill={CHART_COLORS[4]} />
+          <Scatter data={points} fill={CHART_COLORS[4]} {...anim} />
         </ScatterChart>
       </ResponsiveContainer>
     </Shell>
@@ -1190,15 +1273,17 @@ export function QQPlot({ data = defaultValues }: { data?: number[] }) {
 }
 
 export function ResidualPlot({ data = defaultResiduals }: { data?: typeof defaultResiduals }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid />
           <XAxis type="number" dataKey="x" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="residual" tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Scatter data={data} fill={CHART_COLORS[5]} />
+          <Scatter data={data} fill={CHART_COLORS[5]} {...anim} />
         </ScatterChart>
       </ResponsiveContainer>
     </Shell>
@@ -1285,18 +1370,28 @@ export function ContourPlot() {
 }
 
 export function ConfidenceBandPlot() {
+  const anim = useChartAnimation();
   const data = timeSeriesFromSample();
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="upper" stroke="none" fill={CHART_COLORS[1]} fillOpacity={0.12} />
-          <Area type="monotone" dataKey="lower" stroke="none" fill="var(--background)" fillOpacity={1} />
-          <Line type="monotone" dataKey="value" stroke={CHART_COLORS[1]} strokeWidth={2} dot={false} />
+          <Area type="monotone" dataKey="upper" stroke="none" fill={CHART_COLORS[1]} fillOpacity={0.12} {...anim} />
+          <Area type="monotone" dataKey="lower" stroke="none" fill="var(--background)" fillOpacity={1} {...anim} />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={CHART_COLORS[1]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </Shell>
@@ -1472,15 +1567,41 @@ export function ConfusionMatrix({ cells = defaultConfusion }: { cells?: typeof d
 }
 
 export function FeatureImportanceChart({ data = defaultFeatures }: { data?: typeof defaultFeatures }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <defs>
+            {/* Depth without color math: the fill eases to 82% opacity toward
+                the bar tip, which reads as a soft light on both themes. */}
+            <linearGradient id={`feat-${uid}-0`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={CHART_COLORS[6]} stopOpacity={1} />
+              <stop offset="100%" stopColor={CHART_COLORS[6]} stopOpacity={0.82} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid horizontal={false} />
           <XAxis type="number" tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="feature" width={72} tickLine={false} axisLine={false} />
           <Tooltip content={<ChartTooltip />} />
-          <Bar dataKey="importance" fill={CHART_COLORS[6]} radius={[0, 4, 4, 0]} maxBarSize={18} />
+          <Bar
+            dataKey="importance"
+            fill={`url(#feat-${uid}-0)`}
+            radius={[0, 4, 4, 0]}
+            maxBarSize={18}
+            {...anim}
+          >
+            {data.map((d) => (
+              <Cell
+                key={d.feature}
+                fillOpacity={hover.opacityFor(d.feature)}
+                {...hover.bind(d.feature)}
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </Shell>
@@ -1489,18 +1610,27 @@ export function FeatureImportanceChart({ data = defaultFeatures }: { data?: type
 
 export function PCAPlot({ data = defaultPca }: { data?: typeof defaultPca }) {
   const cats = [...new Set(data.map((d) => d.cluster))];
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid />
           <XAxis type="number" dataKey="pc1" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="pc2" tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Scatter data={data} fill={CHART_COLORS[0]}>
+          <Scatter data={data} fill={CHART_COLORS[0]} {...anim}>
             {data.map((d, i) => {
               const idx = cats.indexOf(d.cluster);
-              return <Cell key={i} fill={colorAt(idx)} />;
+              return (
+                <Cell
+                  key={i}
+                  fill={colorAt(idx)}
+                  fillOpacity={hover.opacityFor(d.cluster)}
+                  {...hover.bind(d.cluster)}
+                />
+              );
             })}
           </Scatter>
         </ScatterChart>
@@ -1586,6 +1716,7 @@ export function StripPlot({ values = defaultValues.slice(0, 30) }: { values?: nu
 }
 
 export function JitterPlot({ data = scatterPoints.slice(0, 30) }: { data?: typeof scatterPoints }) {
+  const anim = useChartAnimation();
   const jittered = data.map((d, i) => ({
     ...d,
     x: d.x + ((i % 5) - 2) * 2,
@@ -1595,11 +1726,11 @@ export function JitterPlot({ data = scatterPoints.slice(0, 30) }: { data?: typeo
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid />
           <XAxis type="number" dataKey="x" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="y" tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Scatter data={jittered} fill={CHART_COLORS[2]} fillOpacity={0.75} />
+          <Scatter data={jittered} fill={CHART_COLORS[2]} fillOpacity={0.75} {...anim} />
         </ScatterChart>
       </ResponsiveContainer>
     </Shell>
@@ -1775,15 +1906,26 @@ export function RaincloudPlot({ values = raincloudValues }: { values?: number[] 
 }
 
 export function FrequencyPolygon({ data = defaultHist }: { data?: typeof defaultHist }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="linear" dataKey="count" stroke={CHART_COLORS[4]} strokeWidth={2} dot={{ r: 3 }} />
+          <Line
+            type="linear"
+            dataKey="count"
+            stroke={CHART_COLORS[4]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </Shell>

@@ -2,6 +2,7 @@
 
 import { cn, formatCompact } from "@/lib/utils";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { useSeriesHover } from "@/lib/chart-motion";
 
 export function FunnelChart({
   data,
@@ -16,14 +17,16 @@ export function FunnelChart({
 }) {
   const max = Math.max(...data.map((d) => Number(d[valueKey] ?? 0)), 1);
   const rows = variant === "pyramid" ? [...data].reverse() : data;
+  const hover = useSeriesHover();
 
   return (
     <div className="flex h-full flex-col justify-center gap-2 px-2">
       {rows.map((row, i) => {
         const value = Number(row[valueKey] ?? 0);
         const width = Math.max(18, (value / max) * 100);
+        const key = String(row[nameKey]);
         return (
-          <div key={String(row[nameKey])} className="flex items-center gap-3">
+          <div key={key} className="flex items-center gap-3">
             <div className="w-24 shrink-0 truncate text-xs text-muted-foreground">
               {row[nameKey]}
             </div>
@@ -35,7 +38,9 @@ export function FunnelChart({
                 style={{
                   width: `${width}%`,
                   background: CHART_COLORS[i % CHART_COLORS.length],
+                  opacity: hover.opacityFor(key),
                 }}
+                {...hover.bind(key)}
               >
                 {formatCompact(value)}
               </div>

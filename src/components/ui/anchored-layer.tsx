@@ -30,6 +30,9 @@ export function useAnchoredLayer(
   { maxHeight = 260, width = "anchor" }: AnchorOptions = {},
 ) {
   const [style, setStyle] = React.useState<React.CSSProperties | null>(null);
+  // Which side of the trigger the panel is on — drives the animation's
+  // transform origin so it grows out of the trigger, not the top edge.
+  const [side, setSide] = React.useState<"top" | "bottom">("bottom");
 
   // Measured from the event that opens the layer rather than from an effect, so
   // its first paint is already in the right place.
@@ -43,6 +46,7 @@ export function useAnchoredLayer(
     const above = rect.top - gap - edge;
     const flip = below < Math.min(maxHeight, 180) && above > below;
 
+    setSide(flip ? "top" : "bottom");
     setStyle({
       position: "fixed",
       // A fixed-width panel is nudged back inside the viewport if the trigger
@@ -74,7 +78,32 @@ export function useAnchoredLayer(
     };
   }, [anchored, place]);
 
-  return { style, place, clear };
+  return { style, side, place, clear };
+}
+
+/**
+ * Keeps a closing overlay mounted for one beat so its exit animation can play.
+ * Render the panel while `mounted` and set `data-state="closed"` when
+ * `closing` — globals.css runs `ce-layer-out` on that state.
+ */
+export function useLayerPresence(open: boolean, exitMs = 140) {
+  const [exiting, setExiting] = React.useState(false);
+  const [wasOpen, setWasOpen] = React.useState(open);
+
+  // Derived during render (the sanctioned alternative to setState-in-effect):
+  // on close, flip into the exiting window instead of unmounting immediately.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setExiting(!open);
+  }
+
+  React.useEffect(() => {
+    if (!exiting) return;
+    const t = window.setTimeout(() => setExiting(false), exitMs);
+    return () => window.clearTimeout(t);
+  }, [exiting, exitMs]);
+
+  return { mounted: open || exiting, closing: !open && exiting };
 }
 
 /** Closes an open overlay on a pointer press outside every given element. */

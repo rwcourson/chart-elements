@@ -16,8 +16,40 @@ import {
   overlayPanelClass,
   Portal,
   useAnchoredLayer,
+  useLayerPresence,
   useOutsideDismiss,
 } from "./anchored-layer";
+
+function subscribePalette(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  // Same-tab updates: a tiny custom event dispatched by storePalette().
+  window.addEventListener("ce-palette-change", onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("ce-palette-change", onChange);
+  };
+}
+
+/**
+ * Active palette id, reactive to same-tab picks and other-tab storage writes.
+ * SSR snapshot is the default so server and first client render agree.
+ */
+function useStoredPalette(): PaletteId {
+  return React.useSyncExternalStore(
+    subscribePalette,
+    readStoredPalette,
+    () => DEFAULT_PALETTE,
+  );
+}
+
+/** True after hydration — lets the trigger render stored values mismatch-free. */
+function useMounted(): boolean {
+  return React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
 
 function Swatches({ colors, size = "md" }: { colors: readonly string[]; size?: "sm" | "md" }) {
   const dim = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
@@ -42,25 +74,27 @@ export function PalettePicker({ className }: { className?: string }) {
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const [open, setOpen] = React.useState(false);
-  const [palette, setPalette] = React.useState<PaletteId>(DEFAULT_PALETTE);
-  const [mounted, setMounted] = React.useState(false);
+  const palette = useStoredPalette();
+  const mounted = useMounted();
   const {
     style: menuStyle,
+    side,
     place,
-    clear,
   } = useAnchoredLayer(triggerRef, { maxHeight: 360, width: 260 });
+  // Stays true for one beat after close so the menu can animate out.
+  const presence = useLayerPresence(open);
 
+  // Sync the <html> attribute with the stored palette — on mount and whenever
+  // it changes (including a pick in another tab). External-system sync only.
   React.useLayoutEffect(() => {
-    const id = readStoredPalette();
-    setPalette(id);
-    applyPalette(id);
-    setMounted(true);
-  }, []);
+    applyPalette(palette);
+  }, [palette]);
 
+  // Deliberately no clear() of the anchored style: the panel stays mounted
+  // through its exit animation, and the next open re-places it anyway.
   const close = React.useCallback(() => {
     setOpen(false);
-    clear();
-  }, [clear]);
+  }, []);
 
   useOutsideDismiss(open, [triggerRef, menuRef], close);
 
@@ -76,8 +110,8 @@ export function PalettePicker({ className }: { className?: string }) {
   const current = paletteById(palette);
 
   const select = (id: PaletteId) => {
-    setPalette(id);
-    applyPalette(id);
+    // storePalette dispatches `ce-palette-change`, which updates the hook —
+    // the layout effect above then applies the attribute.
     storePalette(id);
     close();
   };
@@ -108,14 +142,16 @@ export function PalettePicker({ className }: { className?: string }) {
         <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
 
-      {open && menuStyle ? (
+      {presence.mounted && menuStyle ? (
         <Portal>
           <div
             ref={menuRef}
             role="listbox"
             aria-label="Color palettes"
-            className={cn(overlayPanelClass, "z-50 overflow-auto p-1.5 shadow-[var(--overlay-shadow)]")}
+            className={cn("ce-layer", overlayPanelClass, "z-50 overflow-auto p-1.5 shadow-[var(--overlay-shadow)]")}
             style={menuStyle}
+            data-state={presence.closing ? "closed" : "open"}
+            data-side={side}
           >
             <div className="px-2.5 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
               Chart palette
@@ -156,22 +192,5 @@ export function PalettePicker({ className }: { className?: string }) {
 
 /** Live label for copy that should name the active palette. */
 export function useActivePalette() {
-  const [palette, setPalette] = React.useState<PaletteId>(DEFAULT_PALETTE);
-
-  React.useLayoutEffect(() => {
-    setPalette(readStoredPalette());
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "ce-palette") setPalette(readStoredPalette());
-    };
-    window.addEventListener("storage", onStorage);
-    // Same-tab updates: listen for a tiny custom event from the picker.
-    const onLocal = () => setPalette(readStoredPalette());
-    window.addEventListener("ce-palette-change", onLocal);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("ce-palette-change", onLocal);
-    };
-  }, []);
-
-  return paletteById(palette);
+  return paletteById(useStoredPalette());
 }

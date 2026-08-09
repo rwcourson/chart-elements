@@ -54,6 +54,8 @@
   /* Readable ink for labels drawn ON TOP of a --chart-* fill. Light theme
      fills are deep navy, so labels invert to near-white. */
   --chart-label: #ffffff;
+  /* Solid, not glass: a translucent tooltip lets the marks bleed through and
+     the numbers get hard to read (user feedback). */
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-fg: #10141c;
   --chart-tooltip-border: rgb(15 23 42 / 0.12);
@@ -191,7 +193,10 @@ body {
 
 .recharts-text {
   fill: var(--chart-axis) !important;
-  font-size: 12px !important;
+  /* Ticks are scaffolding, not content — 11.5px keeps them legible while
+     handing visual authority back to the marks. */
+  font-size: 11.5px !important;
+  letter-spacing: 0.005em;
   font-family: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif !important;
   /* Axis ticks are numeric columns — proportional digits make them jitter. */
   font-variant-numeric: tabular-nums;
@@ -261,14 +266,183 @@ body {
 
 .recharts-tooltip-wrapper {
   z-index: 20;
+  /* Recharts repositions the tooltip by setting transform on this wrapper.
+     A short ease makes it glide between data points; none made it snap
+     (jittery on dense plots), the library default made it trail the cursor. */
+  transition: transform 130ms cubic-bezier(0.2, 0.8, 0.3, 1) !important;
 }
 
-/* Chart content breathing room — keep block layout for Recharts measure */
+/* Hover isolation: series set fill-opacity/stroke-opacity (or opacity) from
+   useSeriesHover; transition them so the dim reads as a fade, not a flicker.
+   These are presentation attributes, which modern browsers treat as CSS, so
+   the transition fires on attribute changes too. */
+.recharts-bar-rectangle path,
+.recharts-area-area,
+.recharts-area-curve,
+.recharts-line-curve,
+.recharts-pie-sector path,
+.recharts-scatter .recharts-scatter-symbol,
+.recharts-radial-bar-sector path,
+.recharts-funnel .recharts-trapezoid,
+.recharts-treemap-depth-node,
+[data-chart-svg] :is(path, rect, circle, polygon) {
+  transition:
+    opacity 160ms ease,
+    fill-opacity 160ms ease,
+    stroke-opacity 160ms ease;
+}
+
+/* Pie/donut hover isolation, pure CSS. Doing this from React (fillOpacity on
+   Cells) re-runs Recharts' sector animation on every hover, and Recharts
+   hides labels while animating — the callouts flickered off. CSS only toggles
+   opacity, so nothing re-renders and the words stay put. :has keeps the dim
+   scoped to real sector hovers — hovering the donut hole dims nothing. */
+.ce-pie .recharts-pie-sector {
+  transition: opacity 160ms ease;
+}
+
+.ce-pie:has(.recharts-pie-sector:hover) .recharts-pie-sector {
+  opacity: 0.35;
+}
+
+.ce-pie .recharts-pie-sector:hover {
+  opacity: 1;
+}
+
+/* Anchored overlays (Select, DateField, PalettePicker): fluid in AND out.
+   The panel stays mounted for one beat after close (useLayerPresence) so the
+   exit can play. --ce-shift flips the travel direction for panels placed
+   above their trigger. */
+@keyframes ce-layer-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--ce-shift, -4px)) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ce-layer-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--ce-shift, -4px)) scale(0.97);
+  }
+}
+
+.ce-layer {
+  --ce-shift: -4px;
+  transform-origin: top center;
+  animation: ce-layer-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ce-layer[data-side="top"] {
+  --ce-shift: 4px;
+  transform-origin: bottom center;
+}
+
+.ce-layer[data-state="closed"] {
+  animation: ce-layer-out 120ms ease-in both;
+}
+
+/* Gallery visuals fade-and-rise as they mount on scroll / category switch —
+   a bare mount reads as a hard cut when dozens of cards appear at once. */
+@keyframes ce-visual-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ce-visual-in {
+  animation: ce-visual-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Decomposition-tree branches: grid-rows trick so expand/collapse animates
+   height without measuring. Children stay mounted, just folded to 0fr. */
+.ce-tree-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 160ms ease;
+}
+
+.ce-tree-children[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.ce-tree-children > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Loading placeholder for chart frames — a soft sheen sweeping the panel. */
+@keyframes ce-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.chart-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+
+.chart-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--foreground) 8%, transparent),
+    transparent
+  );
+  animation: ce-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recharts-wrapper *,
+  .chart-skeleton::after,
+  .ce-layer,
+  .ce-tree-children,
+  .ce-visual-in {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .recharts-tooltip-wrapper {
+    transition: none !important;
+  }
+}
+
+/* Chart content breathing room — keep block layout for Recharts measure.
+   overflow must stay VISIBLE: the HTML tooltip is positioned inside the
+   wrapper and would otherwise be cut off at the card edge (an embedded <svg>
+   already clips its own marks, so plots cannot spill even without clipping
+   here). */
 .chart-surface {
   position: relative;
   width: 100%;
   min-width: 0;
-  overflow: hidden;
 }
 
 .chart-surface > .recharts-responsive-container {

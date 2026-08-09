@@ -7,6 +7,7 @@ import {
   overlayPanelClass,
   Portal,
   useAnchoredLayer,
+  useLayerPresence,
   useOutsideDismiss,
 } from "./anchored-layer";
 import { Badge } from "./badge";
@@ -74,9 +75,11 @@ export function Select({
   const optionId = (i: number) => `${listboxId}-opt-${i}`;
   const {
     style: menuStyle,
+    side,
     place,
-    clear,
   } = useAnchoredLayer(triggerRef, { maxHeight: maxMenuHeight });
+  // Stays true for one beat after close so the menu can animate out.
+  const presence = useLayerPresence(open);
 
   // The clear row is part of the list so that keyboard walking, typeahead and
   // `aria-activedescendant` indices all line up with what is drawn.
@@ -121,11 +124,12 @@ export function Select({
     [disabled, enabled, rows, value, place],
   );
 
+  // Deliberately no clear() of the anchored style: the panel stays mounted
+  // through its exit animation, and the next open re-places it anyway.
   const close = React.useCallback(() => {
     setOpen(false);
     setActive(-1);
-    clear();
-  }, [clear]);
+  }, []);
 
   const commit = React.useCallback(
     (index: number) => {
@@ -229,7 +233,7 @@ export function Select({
   };
 
   const menu =
-    open && menuStyle ? (
+    presence.mounted && menuStyle ? (
       <div
         ref={menuRef}
         id={listboxId}
@@ -238,8 +242,10 @@ export function Select({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
         style={menuStyle}
+        data-state={presence.closing ? "closed" : "open"}
+        data-side={side}
         className={cn(
-          "z-50 overflow-y-auto overscroll-contain p-1",
+          "ce-layer z-50 overflow-y-auto overscroll-contain p-1",
           overlayPanelClass,
         )}
       >

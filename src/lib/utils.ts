@@ -16,6 +16,14 @@ export function formatNumber(
 }
 
 export function formatCompact(value: number): string {
+  // Compact notation collapses small magnitudes to "0" (0.04 → "0"), which
+  // reads as broken in density/probability charts. Keep two significant
+  // digits for sub-0.1 values instead.
+  if (value !== 0 && Math.abs(value) < 0.1) {
+    return new Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: 2,
+    }).format(value);
+  }
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,

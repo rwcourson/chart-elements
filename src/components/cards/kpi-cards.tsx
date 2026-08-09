@@ -2,8 +2,10 @@
 
 import { ArrowDownRight, ArrowUpRight, ImageIcon, Target } from "lucide-react";
 import { cn, formatCompact, formatPercent } from "@/lib/utils";
+import { useCountUp } from "@/lib/chart-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LineSparkline } from "@/components/charts/sparklines";
 
 export type Metric = {
   label: string;
@@ -12,16 +14,36 @@ export type Metric = {
   target?: number;
   category?: string;
   imageUrl?: string;
+  /** Optional trend series — renders a sparkline behind the KPI value. */
+  spark?: number[];
   format?: "number" | "currency" | "percent";
 };
 
-function formatMetric(m: Metric) {
-  if (m.format === "percent") return formatPercent(m.value);
-  if (m.format === "currency")
-    return formatCompact(m.value).startsWith("$")
-      ? formatCompact(m.value)
-      : `$${formatCompact(m.value)}`;
-  return formatCompact(m.value);
+function formatValue(format: Metric["format"], value: number) {
+  if (format === "percent") return formatPercent(value);
+  if (format === "currency")
+    return formatCompact(value).startsWith("$")
+      ? formatCompact(value)
+      : `$${formatCompact(value)}`;
+  return formatCompact(value);
+}
+
+/**
+ * KPI figure with an ease-out count-up on mount and on data change.
+ * One component so every card variant animates the same way (and hooks stay
+ * out of render loops).
+ */
+function MetricValue({
+  format,
+  value,
+  className,
+}: {
+  format?: Metric["format"];
+  value: number;
+  className?: string;
+}) {
+  const display = useCountUp(value);
+  return <div className={className}>{formatValue(format, display)}</div>;
 }
 
 export function ModernCard({
@@ -42,9 +64,11 @@ export function ModernCard({
             <div className="text-[13px] font-medium text-muted-foreground">
               {metric.label}
             </div>
-            <div className="text-[26px] font-bold tracking-[-0.02em] tabular-nums">
-              {formatMetric(metric)}
-            </div>
+            <MetricValue
+              format={metric.format}
+              value={metric.value}
+              className="text-[26px] font-bold tracking-[-0.02em] tabular-nums"
+            />
           </div>
           {withImage ? (
             metric.imageUrl ? (
@@ -61,6 +85,11 @@ export function ModernCard({
             )
           ) : null}
         </div>
+        {metric.spark?.length ? (
+          <div aria-hidden="true" className="h-9 w-full">
+            <LineSparkline data={metric.spark.map((v, i) => ({ i, v }))} />
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           {metric.delta != null ? (
             <Badge variant={up ? "success" : "danger"}>
@@ -97,9 +126,11 @@ export function MultiCardLayout({ metrics }: { metrics: Metric[] }) {
               <div className="text-[12px] font-medium text-muted-foreground">
                 {m.label}
               </div>
-              <div className="text-[22px] font-bold tracking-[-0.02em] tabular-nums">
-                {formatMetric(m)}
-              </div>
+              <MetricValue
+                format={m.format}
+                value={m.value}
+                className="text-[22px] font-bold tracking-[-0.02em] tabular-nums"
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {m.delta != null ? (
@@ -155,9 +186,11 @@ export function LegacyCard({ metric }: { metric: Metric }) {
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border bg-card p-6 text-center">
       <div className="text-sm text-muted-foreground">{metric.label}</div>
-      <div className="mt-2 text-4xl font-semibold tabular-nums">
-        {formatMetric(metric)}
-      </div>
+      <MetricValue
+        format={metric.format}
+        value={metric.value}
+        className="mt-2 text-4xl font-semibold tabular-nums"
+      />
     </div>
   );
 }
@@ -172,9 +205,11 @@ export function MultiRowCard({ metrics }: { metrics: Metric[] }) {
             className="flex items-center justify-between gap-3 px-4 py-3"
           >
             <div className="text-sm">{m.label}</div>
-            <div className="text-sm font-semibold tabular-nums">
-              {formatMetric(m)}
-            </div>
+            <MetricValue
+              format={m.format}
+              value={m.value}
+              className="text-sm font-semibold tabular-nums"
+            />
           </div>
         ))}
       </CardContent>
@@ -229,14 +264,14 @@ function KpiGoalBody({
           {status.replace("-", " ")}
         </span>
       </div>
-      <div
+      <MetricValue
+        format={metric.format}
+        value={metric.value}
         className={cn(
           "font-semibold tabular-nums",
           dense ? "text-[22px] leading-none tracking-[-0.02em]" : "text-3xl",
         )}
-      >
-        {formatMetric(metric)}
-      </div>
+      />
       {metric.target != null ? (
         <div className={cn(dense ? "space-y-1" : "space-y-1.5")}>
           <div
@@ -338,9 +373,11 @@ export function TrafficLightKpi({ metric }: { metric: Metric }) {
       />
       <div>
         <div className="text-xs text-muted-foreground">{metric.label}</div>
-        <div className="text-2xl font-semibold tabular-nums">
-          {formatMetric(metric)}
-        </div>
+        <MetricValue
+          format={metric.format}
+          value={metric.value}
+          className="text-2xl font-semibold tabular-nums"
+        />
       </div>
     </div>
   );

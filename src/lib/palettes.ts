@@ -9,6 +9,7 @@
  */
 export type PaletteId =
   | "berry"
+  | "bg-brand"
   | "bg-time"
   | "ocean"
   | "sunset"
@@ -37,6 +38,12 @@ export const PALETTES: readonly Palette[] = [
     label: "Berry",
     blurb: "Default · plum & rose",
     swatches: ["#4c1d95", "#7c3aed", "#c026d3", "#db2777", "#e11d48"],
+  },
+  {
+    id: "bg-brand",
+    label: "B&G",
+    blurb: "Brasfield & Gorrie brand",
+    swatches: ["#002070", "#0028f0", "#3888ff", "#00143c", "#b0ffff"],
   },
   {
     id: "bg-time",

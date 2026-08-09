@@ -65,9 +65,11 @@ export function DeferredVisual({
 
   return (
     <div ref={ref} className={reserveHeight ? "w-full" : "h-full w-full"}>
-      {visible
-        ? children
-        : (fallback ?? <VisualSkeleton height={reserveHeight} />)}
+      {visible ? (
+        <div className="ce-visual-in h-full w-full">{children}</div>
+      ) : (
+        (fallback ?? <VisualSkeleton height={reserveHeight} />)
+      )}
     </div>
   );
 }

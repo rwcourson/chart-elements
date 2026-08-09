@@ -31,6 +31,33 @@ function rectEdge(
   return 1 / Math.hypot(ux / halfW || 0, uy / halfH || 0);
 }
 
+/**
+ * Distance from a stadium (pill) center to its edge along (ux, uy). The pill
+ * is a central rectangle plus two semicircle caps; `rectEdge` (an ellipse)
+ * undershoots the cap region, so diagonal connectors trimmed with it ended up
+ * INSIDE the pill — the arrowhead drawn over the fill. Assumes halfW ≥ halfH.
+ */
+function capsuleEdge(
+  halfW: number,
+  halfH: number,
+  ux: number,
+  uy: number,
+) {
+  const r = Math.min(halfW, halfH);
+  const c = halfW - r; // x-offset of each cap's center
+  const ax = Math.abs(ux);
+  const ay = Math.abs(uy);
+  if (ax < 1e-6) return halfH / ay; // straight up/down
+  // At the cap's start (x = c) the ray is still within ±r of the axis → it
+  // exits through the cap circle; otherwise it crosses the top edge first.
+  if (c > 0 && (ay / ax) * c <= r) {
+    const disc = r * r - c * c * ay * ay;
+    return c * ax + Math.sqrt(Math.max(0, disc));
+  }
+  if (ay < 1e-6) return halfW / ax; // straight sideways
+  return halfH / ay;
+}
+
 type TreeDatum = { name: string; children?: TreeDatum[] };
 
 const defaultTree: TreeDatum = {
@@ -592,14 +619,18 @@ export function ProcessFlow({ steps = defaultFlow }: { steps?: typeof defaultFlo
         {layout.slice(0, -1).map((s, i) => {
           const next = layout[i + 1]!;
           // Trim the connector to each pill's edge along the actual direction
-          // of travel. Fixed horizontal offsets drew vertical links backwards.
+          // of travel, using the stadium shape (capsuleEdge) — the old ellipse
+          // trim undershoots a pill on diagonals, so the tip compensation
+          // landed the arrowhead on top of the fill. The marker tip pokes ~1
+          // unit past the endpoint (refX 5 of 6), so +2 puts the tip right on
+          // the border without overlapping it.
           const dx = next.cx - s.cx;
           const dy = next.cy - s.cy;
           const len = Math.hypot(dx, dy) || 1;
           const ux = dx / len;
           const uy = dy / len;
-          const from = rectEdge(nodeW / 2, nodeH / 2, ux, uy) + 2;
-          const to = rectEdge(nodeW / 2, nodeH / 2, -ux, -uy) + 7;
+          const from = capsuleEdge(nodeW / 2, nodeH / 2, ux, uy) + 2;
+          const to = capsuleEdge(nodeW / 2, nodeH / 2, -ux, -uy) + 2;
           return (
             <line
               key={s.id}

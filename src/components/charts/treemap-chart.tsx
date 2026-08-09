@@ -2,6 +2,11 @@
 
 import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import {
+  useChartAnimation,
+  useSeriesHover,
+  type SeriesHover,
+} from "@/lib/chart-motion";
 import { formatCompact } from "@/lib/utils";
 import { ChartTooltip } from "./chart-tooltip";
 
@@ -37,8 +42,11 @@ function Content(props: {
   name?: string;
   size?: number;
   fill?: string;
+  hover?: SeriesHover;
 }) {
-  const { x = 0, y = 0, width = 0, height = 0, name, size, fill } = props;
+  const { x = 0, y = 0, width = 0, height = 0, name, size, fill, hover } = props;
+  // Hover isolation is per leaf name, like the waterfall's per-category bind.
+  const nodeKey = String(name ?? "");
   const tile = (
     <rect
       x={x}
@@ -46,19 +54,20 @@ function Content(props: {
       width={width}
       height={height}
       fill={fill}
+      fillOpacity={hover?.opacityFor(nodeKey)}
       rx={4}
       stroke="var(--card)"
       strokeWidth={2}
     />
   );
 
-  if (width < 40 || height < 28) return tile;
+  if (width < 40 || height < 28) return <g {...hover?.bind(nodeKey)}>{tile}</g>;
 
   // A tile is only worth a value if the label above it has somewhere to sit.
   const showValue = size != null && width >= 64 && height >= 44;
 
   return (
-    <g>
+    <g {...hover?.bind(nodeKey)}>
       {tile}
       {/*
         stroke="none" is load-bearing: the surrounding Recharts layer carries the
@@ -112,13 +121,15 @@ function TreemapTooltip(props: {
 
 export function TreemapChart({ data }: { data: Node[] }) {
   const flat = flatten(data);
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <Treemap
         data={flat}
         dataKey="size"
-        content={<Content />}
-        isAnimationActive={false}
+        content={<Content hover={hover} />}
+        {...anim}
       >
         {/* Values are on the tiles now, so this only really serves the tiles too
             small to carry text. The default tooltip rendered near-black text on

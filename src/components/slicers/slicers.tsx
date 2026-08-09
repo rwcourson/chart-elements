@@ -11,7 +11,7 @@ import {
   startOfYear,
   endOfYear,
 } from "date-fns";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -417,11 +417,12 @@ function HierarchyNode({
             aria-expanded={isExpanded}
             className="mr-0.5 rounded p-0.5 text-muted-foreground hover:bg-muted"
           >
-            {isExpanded ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
+            <ChevronRight
+              className={cn(
+                "size-3.5 transition-transform duration-200",
+                isExpanded && "rotate-90",
+              )}
+            />
           </button>
         ) : (
           <span className="w-5" />
@@ -442,21 +443,27 @@ function HierarchyNode({
           <span className="truncate">{node.label}</span>
         </button>
       </div>
-      {hasChildren && isExpanded
-        ? node.children!.map((child) => (
-            <HierarchyNode
-              key={`${path}/${child.value}`}
-              node={child}
-              path={`${path}/${child.value}`}
-              depth={depth + 1}
-              value={value}
-              multiple={multiple}
-              onChange={onChange}
-              expanded={expanded}
-              onToggleExpand={onToggleExpand}
-            />
-          ))
-        : null}
+      {hasChildren ? (
+        /* Same 0fr→1fr fold as the decomposition tree (.ce-tree-children in
+           globals.css) so expand/collapse animates instead of snapping. */
+        <div className="ce-tree-children" data-open={isExpanded}>
+          <div>
+            {node.children!.map((child) => (
+              <HierarchyNode
+                key={`${path}/${child.value}`}
+                node={child}
+                path={`${path}/${child.value}`}
+                depth={depth + 1}
+                value={value}
+                multiple={multiple}
+                onChange={onChange}
+                expanded={expanded}
+                onToggleExpand={onToggleExpand}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

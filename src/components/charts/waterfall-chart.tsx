@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { SEMANTIC } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import { ChartEmpty } from "./chart-frame";
 import { ChartTooltip } from "./chart-tooltip";
 
@@ -54,20 +55,33 @@ function shapeWaterfall(data: WaterfallPoint[]): ShapedPoint[] {
 
 export function WaterfallChart({ data }: { data: WaterfallPoint[] }) {
   const shaped = shapeWaterfall(data ?? []);
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
 
   if (!shaped.length) return <ChartEmpty />;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={shaped} margin={{ top: 12, right: 16, left: 4, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} />
         <XAxis dataKey="name" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
-        <Bar dataKey="base" stackId="w" fill="transparent" />
-        <Bar dataKey="display" stackId="w" radius={[4, 4, 0, 0]} maxBarSize={40}>
+        <Bar dataKey="base" stackId="w" fill="transparent" {...anim} />
+        <Bar
+          dataKey="display"
+          stackId="w"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={40}
+          {...anim}
+        >
           {shaped.map((entry, i) => (
-            <Cell key={i} fill={entry.color} />
+            <Cell
+              key={i}
+              fill={entry.color}
+              fillOpacity={hover.opacityFor(entry.name)}
+              {...hover.bind(entry.name)}
+            />
           ))}
         </Bar>
       </BarChart>

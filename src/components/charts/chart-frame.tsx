@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Card,
@@ -38,10 +39,10 @@ export function ChartFrame({
   const pxHeight = typeof height === "number" ? height : undefined;
 
   return (
-    // overflow-hidden is for plots (Recharts can paint past the plot box).
-    // Auto-height frames hold form controls whose focus rings sit outside the
-    // field — clipping them squares off the rounded ring at every corner.
-    <Card className={cn(!auto && "overflow-hidden", className)}>
+    // No overflow clipping anywhere on the frame: the SVG clips its own marks,
+    // and clipping here would cut off tooltips near the card edge and the
+    // focus rings of form controls in auto-height frames.
+    <Card className={className}>
       {(title || description || actions) && (
         <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
           <div className="min-w-0 space-y-1">
@@ -66,8 +67,8 @@ export function ChartFrame({
       >
         {/*
           Explicit block sizing (not flex % height) so Recharts ResponsiveContainer
-          can measure a non-zero clientWidth/clientHeight. `chart-surface` also
-          clips overflow — only attach it when we actually have a plot to contain.
+          can measure a non-zero clientWidth/clientHeight. `chart-surface` is the
+          positioning context — only attach it when we actually have a plot.
         */}
         <div
           className={cn("relative w-full", !auto && "chart-surface")}
@@ -86,8 +87,19 @@ export function ChartFrame({
 
 export function ChartEmpty({ label = "No data" }: { label?: string }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      {label}
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+      <BarChart3 className="h-5 w-5 opacity-50" strokeWidth={1.75} />
+      <span className="text-sm">{label}</span>
     </div>
+  );
+}
+
+/** Loading placeholder: a muted panel with a soft sheen sweeping across it. */
+export function ChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("chart-skeleton h-full w-full", className)}
+    />
   );
 }

@@ -7,6 +7,59 @@
  * globals.css.
  */
 
+/* ——— B&G ——— */
+/* Brasfield & Gorrie brand: Blue 4 #002070 (primary navy), Blue 5 #00143C
+   (deep navy), Blue 3 #0028F0 (electric accent, light surfaces only),
+   Blue 2 #3888FF (accent on dark), Blue 1 #B0FFFF (pale tint),
+   Gray 1 #E8E8EC. The ramp alternates deep/bright so adjacent series stay
+   distinguishable within one blue family. */
+:root[data-palette="bg-brand"] {
+  --ring: #0028f0;
+  --accent: #0028f0;
+  --accent-hover: #0021c9;
+  --accent-soft: rgb(0 40 240 / 0.09);
+  --accent-foreground: #ffffff;
+  --sidebar-active: rgb(0 32 112 / 0.08);
+  --chart-1: #002070;
+  --chart-2: #3888ff;
+  --chart-3: #0028f0;
+  --chart-4: #7fa8ff;
+  --chart-5: #00143c;
+  --chart-6: #64748b;
+  --chart-7: #2645d8;
+  --chart-8: #a8c6ff;
+  --chart-positive: #1f6b4a;
+  --chart-negative: #9c343c;
+  --chart-neutral: #5b6675;
+  --chart-warning: #8a5010;
+  --chart-label: #ffffff;
+}
+
+.dark[data-palette="bg-brand"] {
+  --ring: #3888ff;
+  --accent: #3888ff;
+  --accent-hover: #6ea4ff;
+  --accent-soft: rgb(56 136 255 / 0.18);
+  /* Bright-blue fills take the deep navy as their ink. */
+  --accent-foreground: #00143c;
+  --sidebar-active: rgb(255 255 255 / 0.11);
+  --chart-1: #3888ff;
+  /* Blue 1 is "subtle highlight only" on paper; on the dark card it reads as
+     a bright cyan marker, which is where it earns its place. */
+  --chart-2: #b0ffff;
+  --chart-3: #7fa8ff;
+  --chart-4: #4c63ff;
+  --chart-5: #d6e6ff;
+  --chart-6: #94a3b8;
+  --chart-7: #66d9e8;
+  --chart-8: #a8c6ff;
+  --chart-positive: #7cc79d;
+  --chart-negative: #e99ba1;
+  --chart-neutral: #a2acbd;
+  --chart-warning: #e0a45e;
+  --chart-label: #00143c;
+}
+
 /* ——— Ocean ——— */
 :root[data-palette="ocean"] {
   --ring: #0e7490;

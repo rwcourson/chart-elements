@@ -158,13 +158,13 @@ export function LinearGauge({
       ) : null}
       <div className="relative h-3 rounded-full bg-muted">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[var(--chart-1)]"
+          className="absolute inset-y-0 left-0 rounded-full bg-[var(--chart-1)] transition-all"
           style={{ width: `${pct * 100}%` }}
         />
         {/* The knob travels between its own half-widths rather than 0–100%,
             otherwise it hangs 8px outside the track at both extremes. */}
         <div
-          className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-card bg-[var(--chart-1)] shadow"
+          className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-card bg-[var(--chart-1)] shadow transition-all"
           style={{ left: `calc(${pct} * (100% - 16px))` }}
         />
       </div>
@@ -216,7 +216,7 @@ export function BulletChart({
           style={{ width: `${pctOf(poor)}%` }}
         />
         <div
-          className="absolute top-1/2 h-3 -translate-y-1/2 rounded-sm bg-[var(--chart-1)]"
+          className="absolute top-1/2 h-3 -translate-y-1/2 rounded-sm bg-[var(--chart-1)] transition-all"
           style={{ width: `${pctOf(value)}%` }}
         />
         {/* Nudged back by its own width at the top of the scale so a target of
@@ -323,7 +323,7 @@ export function ThermometerGauge({
             bulb, which is narrower than the tube where the two meet. */}
         <div className="relative w-9 flex-1 overflow-hidden rounded-t-full bg-muted">
           <div
-            className="absolute inset-x-0 bottom-0 bg-[var(--chart-negative)]"
+            className="absolute inset-x-0 bottom-0 bg-[var(--chart-negative)] transition-all"
             style={{ height: `${pct * 100}%` }}
           />
           {[0.25, 0.5, 0.75].map((fraction) => (

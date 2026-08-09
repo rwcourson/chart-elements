@@ -20,6 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_COLORS, colorAt, SEMANTIC } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import {
   calendarHeat,
   kpiMetrics,
@@ -46,16 +47,33 @@ function Shell({ children }: { children: React.ReactNode }) {
 const streamKeys = ["product", "service", "other"];
 
 export function Streamgraph({ data = stackedSeries }: { data?: typeof stackedSeries }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }} stackOffset="wiggle">
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={36} />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={<ChartTooltip showTotal />} />
           {streamKeys.map((k, i) => (
-            <Area key={k} type="monotone" dataKey={k} stackId="1" stroke={colorAt(i)} fill={colorAt(i)} fillOpacity={0.55} strokeWidth={1} />
+            <Area
+              key={k}
+              type="monotone"
+              dataKey={k}
+              stackId="1"
+              stroke={colorAt(i)}
+              strokeWidth={2.25}
+              strokeLinecap="round"
+              strokeOpacity={hover.opacityFor(k)}
+              fill={colorAt(i)}
+              fillOpacity={0.55 * hover.opacityFor(k)}
+              activeDot={{ r: 4, strokeWidth: 0 }}
+              {...anim}
+              {...hover.bind(k)}
+            />
           ))}
         </AreaChart>
       </ResponsiveContainer>
@@ -170,15 +188,17 @@ export function HorizonChart({
 }
 
 export function StepChart({ data = timeSeries }: { data?: typeof timeSeries }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="stepAfter" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+          <Line type="stepAfter" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2.25} strokeLinecap="round" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -186,15 +206,17 @@ export function StepChart({ data = timeSeries }: { data?: typeof timeSeries }) {
 }
 
 export function SplineChart({ data = timeSeries }: { data?: typeof timeSeries }) {
+  const anim = useChartAnimation();
+
   return (
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[1]} strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[1]} strokeWidth={2.25} strokeLinecap="round" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} />
         </LineChart>
       </ResponsiveContainer>
     </Shell>
@@ -202,6 +224,7 @@ export function SplineChart({ data = timeSeries }: { data?: typeof timeSeries })
 }
 
 export function RangeAreaChart({ data = timeSeries }: { data?: typeof timeSeries }) {
+  const anim = useChartAnimation();
   const shaped = data.map((d) => ({
     date: d.date,
     low: d.cost,
@@ -213,13 +236,13 @@ export function RangeAreaChart({ data = timeSeries }: { data?: typeof timeSeries
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={shaped} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="high" stroke="none" fill={CHART_COLORS[2]} fillOpacity={0.15} />
-          <Area type="monotone" dataKey="low" stroke="none" fill="var(--background)" />
-          <Line type="monotone" dataKey="mid" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
+          <Area type="monotone" dataKey="high" stroke="none" fill={CHART_COLORS[2]} fillOpacity={0.15} {...anim} />
+          <Area type="monotone" dataKey="low" stroke="none" fill="var(--background)" {...anim} />
+          <Line type="monotone" dataKey="mid" stroke={CHART_COLORS[2]} strokeWidth={2.25} strokeLinecap="round" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} />
         </AreaChart>
       </ResponsiveContainer>
     </Shell>
@@ -231,6 +254,7 @@ export function BandChart(props: React.ComponentProps<typeof RangeAreaChart>) {
 }
 
 export function FanChart({ data = timeSeries }: { data?: typeof timeSeries }) {
+  const anim = useChartAnimation();
   const shaped = data.map((d, i) => ({
     date: d.date,
     base: d.forecast,
@@ -243,13 +267,13 @@ export function FanChart({ data = timeSeries }: { data?: typeof timeSeries }) {
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={shaped} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="p90" stroke="none" fill={CHART_COLORS[3]} fillOpacity={0.1} />
-          <Area type="monotone" dataKey="p10" stroke="none" fill="var(--background)" />
-          <Line type="monotone" dataKey="p50" stroke={CHART_COLORS[3]} strokeWidth={2} dot={false} />
+          <Area type="monotone" dataKey="p90" stroke="none" fill={CHART_COLORS[3]} fillOpacity={0.1} {...anim} />
+          <Area type="monotone" dataKey="p10" stroke="none" fill="var(--background)" {...anim} />
+          <Line type="monotone" dataKey="p50" stroke={CHART_COLORS[3]} strokeWidth={2.25} strokeLinecap="round" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} />
         </AreaChart>
       </ResponsiveContainer>
     </Shell>
@@ -323,13 +347,26 @@ export function OHLCChart({ data = ohlc }: { data?: typeof ohlc }) {
 }
 
 export function StockChart({ data = ohlc }: { data?: typeof ohlc }) {
+  const anim = useChartAnimation();
+  // Gradient ids must be unique per instance — two charts sharing a series key
+  // on one page would otherwise reference the same <defs>.
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   return (
     <Shell>
       <div className="grid h-full w-full grid-rows-[3fr_1fr] gap-1">
         <CandlestickChart data={data} />
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data.map((d) => ({ date: d.date, volume: d.high - d.low }))} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-            <Bar dataKey="volume" fill={CHART_COLORS[5]} radius={[2, 2, 0, 0]} maxBarSize={16} />
+            <defs>
+              {/* Depth without color math: the fill eases to 82% opacity toward
+                  the baseline, which reads as a soft top light on both themes. */}
+              <linearGradient id={`vol-${uid}-0`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS[5]} stopOpacity={1} />
+                <stop offset="100%" stopColor={CHART_COLORS[5]} stopOpacity={0.82} />
+              </linearGradient>
+            </defs>
+            <Bar dataKey="volume" fill={`url(#vol-${uid}-0)`} radius={[2, 2, 0, 0]} maxBarSize={16} {...anim} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -419,6 +456,9 @@ export function FinancialWaterfall({ data = waterfallData }: { data?: typeof wat
 }
 
 export function ParetoChart({ data = salesByRegion }: { data?: typeof salesByRegion }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const sorted = [...data].sort((a, b) => b.sales - a.sales);
   const total = d3.sum(sorted, (d) => d.sales) || 1;
   // Pure cumulative scan (no mutation after render).
@@ -433,13 +473,21 @@ export function ParetoChart({ data = salesByRegion }: { data?: typeof salesByReg
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={shaped} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <defs>
+            {/* Depth without color math: the fill eases to 82% opacity toward
+                the baseline, which reads as a soft top light on both themes. */}
+            <linearGradient id={`pareto-${uid}-0`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CHART_COLORS[0]} stopOpacity={1} />
+              <stop offset="100%" stopColor={CHART_COLORS[0]} stopOpacity={0.82} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} />
           <YAxis yAxisId="l" tickLine={false} axisLine={false} width={40} />
           <YAxis yAxisId="r" orientation="right" domain={[0, 1]} tickFormatter={(v) => formatPercent(Number(v), 0)} tickLine={false} axisLine={false} width={36} />
           <Tooltip content={<ChartTooltip />} />
-          <Bar yAxisId="l" dataKey="sales" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} maxBarSize={32} />
-          <Line yAxisId="r" type="monotone" dataKey="cumulative" stroke={CHART_COLORS[2]} strokeWidth={2} dot={{ r: 3 }} />
+          <Bar yAxisId="l" dataKey="sales" fill={`url(#pareto-${uid}-0)`} fillOpacity={hover.opacityFor("sales")} radius={[4, 4, 0, 0]} maxBarSize={32} {...anim} {...hover.bind("sales")} />
+          <Line yAxisId="r" type="monotone" dataKey="cumulative" stroke={CHART_COLORS[2]} strokeWidth={2.25} strokeLinecap="round" strokeOpacity={hover.opacityFor("cumulative")} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} {...hover.bind("cumulative")} />
         </ComposedChart>
       </ResponsiveContainer>
     </Shell>
@@ -447,6 +495,8 @@ export function ParetoChart({ data = salesByRegion }: { data?: typeof salesByReg
 }
 
 export function ControlChart({ data = timeSeries }: { data?: typeof timeSeries }) {
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
   const mean = d3.mean(data, (d) => d.revenue) ?? 0;
   const shaped = data.map((d) => ({
     date: d.date,
@@ -460,14 +510,16 @@ export function ControlChart({ data = timeSeries }: { data?: typeof timeSeries }
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={shaped} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="ucl" stroke={SEMANTIC.warning} strokeDasharray="4 4" dot={false} strokeWidth={1} />
-          <Line type="monotone" dataKey="lcl" stroke={SEMANTIC.warning} strokeDasharray="4 4" dot={false} strokeWidth={1} />
-          <Line type="monotone" dataKey="mean" stroke={SEMANTIC.neutral} strokeDasharray="2 2" dot={false} strokeWidth={1} />
-          <Line type="monotone" dataKey="value" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ r: 3 }} />
+          {/* Limit/center lines are reference marks, so they keep their thin
+              dashed strokes; only the data line takes the full curve treatment. */}
+          <Line type="monotone" dataKey="ucl" stroke={SEMANTIC.warning} strokeDasharray="4 4" dot={false} strokeWidth={1} strokeOpacity={hover.opacityFor("ucl")} {...anim} {...hover.bind("ucl")} />
+          <Line type="monotone" dataKey="lcl" stroke={SEMANTIC.warning} strokeDasharray="4 4" dot={false} strokeWidth={1} strokeOpacity={hover.opacityFor("lcl")} {...anim} {...hover.bind("lcl")} />
+          <Line type="monotone" dataKey="mean" stroke={SEMANTIC.neutral} strokeDasharray="2 2" dot={false} strokeWidth={1} strokeOpacity={hover.opacityFor("mean")} {...anim} {...hover.bind("mean")} />
+          <Line type="monotone" dataKey="value" stroke={CHART_COLORS[0]} strokeWidth={2.25} strokeLinecap="round" strokeOpacity={hover.opacityFor("value")} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} {...hover.bind("value")} />
         </ComposedChart>
       </ResponsiveContainer>
     </Shell>
@@ -938,6 +990,10 @@ export function AnimatedBarRace({ data = salesByRegion }: { data?: typeof salesB
     return () => clearInterval(id);
   }, [data.length]);
 
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+
   const shaped = data.map((d, i) => ({
     name: d.name,
     value: d.sales * (0.6 + ((i + frame) % (data.length || 1)) / (data.length || 1) * 0.5),
@@ -955,10 +1011,22 @@ export function AnimatedBarRace({ data = salesByRegion }: { data?: typeof salesB
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={shaped} layout="vertical" margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <defs>
+            {shaped.map((_, i) => (
+              // Depth without color math: the fill eases to 82% opacity toward
+              // the baseline, which reads as a soft top light on both themes.
+              <linearGradient key={i} id={`race-${uid}-${i}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={colorAt(i)} stopOpacity={1} />
+                <stop offset="100%" stopColor={colorAt(i)} stopOpacity={0.82} />
+              </linearGradient>
+            ))}
+          </defs>
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="name" width={64} tickLine={false} axisLine={false} />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
-            {shaped.map((_, i) => <Cell key={i} fill={colorAt(i)} />)}
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18} {...anim}>
+            {shaped.map((d, i) => (
+              <Cell key={i} fill={`url(#race-${uid}-${i})`} fillOpacity={hover.opacityFor(d.name)} {...hover.bind(d.name)} />
+            ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -973,6 +1041,8 @@ export function AnimatedScatter({ data = timeSeries }: { data?: typeof timeSerie
     const id = setInterval(() => setFrame((f) => (f + 1) % (data.length || 1)), 900);
     return () => clearInterval(id);
   }, [data.length]);
+
+  const anim = useChartAnimation();
 
   const points = data.map((d, i) => ({
     x: i * 12 + 20,
@@ -992,10 +1062,10 @@ export function AnimatedScatter({ data = timeSeries }: { data?: typeof timeSerie
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid />
           <XAxis type="number" dataKey="x" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="y" tickLine={false} axisLine={false} width={36} />
-          <Scatter data={points} fill={CHART_COLORS[4]}>
+          <Scatter data={points} fill={CHART_COLORS[4]} {...anim}>
             {points.map((_, i) => (
               <Cell key={i} fill={i <= frame ? colorAt(i) : "var(--chart-grid)"} />
             ))}
@@ -1014,6 +1084,8 @@ export function AnimatedTimeline({ data = timeSeries }: { data?: typeof timeSeri
     return () => clearInterval(id);
   }, [data.length]);
 
+  const anim = useChartAnimation();
+
   if (data.length === 0) {
     return (
       <Shell>
@@ -1026,10 +1098,10 @@ export function AnimatedTimeline({ data = timeSeries }: { data?: typeof timeSeri
     <Shell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data.slice(0, frame)} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={40} />
-          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2.25} strokeLinecap="round" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} {...anim} />
         </LineChart>
       </ResponsiveContainer>
     </Shell>

@@ -8,6 +8,7 @@ import {
   overlayPanelClass,
   Portal,
   useAnchoredLayer,
+  useLayerPresence,
   useOutsideDismiss,
 } from "./anchored-layer";
 import { Calendar, fromIso, toIso, type IsoDate } from "./calendar";
@@ -60,18 +61,21 @@ export function DateField({
   const panelRef = React.useRef<HTMLDivElement>(null);
   const [open, setOpen] = React.useState(false);
   const dialogId = React.useId();
-  const { style, place, clear } = useAnchoredLayer(triggerRef, {
+  const { style, side, place } = useAnchoredLayer(triggerRef, {
     maxHeight: 340,
     width: PANEL_WIDTH,
   });
+  // Stays true for one beat after close so the panel can animate out.
+  const presence = useLayerPresence(open);
 
+  // Deliberately no clear() of the anchored style: the panel stays mounted
+  // through its exit animation, and the next open re-places it anyway.
   const close = React.useCallback(
     (restoreFocus = false) => {
       setOpen(false);
-      clear();
       if (restoreFocus) triggerRef.current?.focus();
     },
-    [clear],
+    [],
   );
 
   useOutsideDismiss(
@@ -126,7 +130,7 @@ export function DateField({
         />
       </button>
 
-      {open && style ? (
+      {presence.mounted && style ? (
         <Portal>
           <div
             ref={panelRef}
@@ -135,13 +139,15 @@ export function DateField({
             aria-modal="false"
             aria-label={ariaLabel ?? "Choose a date"}
             style={style}
+            data-state={presence.closing ? "closed" : "open"}
+            data-side={side}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.stopPropagation();
                 close(true);
               }
             }}
-            className={cn("z-50 overflow-auto p-2", overlayPanelClass)}
+            className={cn("ce-layer z-50 overflow-auto p-2", overlayPanelClass)}
           >
             <Calendar
               autoFocus

@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   AlertTriangle,
   Bot,
-  ChevronDown,
   ChevronRight,
   MapPin,
   MessageSquare,
@@ -27,8 +26,10 @@ import {
 } from "recharts";
 import { cn, formatCompact, formatPercent } from "@/lib/utils";
 import { CHART_COLORS, SEMANTIC } from "@/lib/chart-colors";
+import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import { timeSeries } from "@/lib/sample-data";
 import { ChartFrame } from "@/components/charts/chart-frame";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,11 +127,12 @@ function TreeBranch({
           style={{ width: `${share * 100}%` }}
         />
         {hasChildren ? (
-          open ? (
-            <ChevronDown className="relative h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="relative h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          )
+          <ChevronRight
+            className={cn(
+              "relative h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              open && "rotate-90",
+            )}
+          />
         ) : (
           <span className="relative inline-block w-3.5" />
         )}
@@ -151,23 +153,31 @@ function TreeBranch({
           ${formatCompact(node.value)}
         </span>
       </button>
-      {open && hasChildren ? (
+      {hasChildren ? (
         /*
           Indentation lives on this wrapper, and its left border draws the branch
           guide. Indenting the row itself with a margin while it was `w-full`
           pushed every child past its parent's right edge, which is what knocked
           the value columns out of alignment.
+
+          Children stay mounted inside a 0fr→1fr grid fold (see
+          .ce-tree-children in globals.css) so expanding and collapsing both
+          animate instead of snapping.
         */
-        <div className="ml-3.5 mt-1 space-y-1 border-l border-border pl-3">
-          {node.children?.map((child) => (
-            <TreeBranch
-              key={child.label}
-              node={child}
-              total={total}
-              depth={depth + 1}
-              ai={ai}
-            />
-          ))}
+        <div className="ce-tree-children" data-open={open}>
+          <div>
+            <div className="ml-3.5 mt-1 space-y-1 border-l border-border pl-3">
+              {node.children?.map((child) => (
+                <TreeBranch
+                  key={child.label}
+                  node={child}
+                  total={total}
+                  depth={depth + 1}
+                  ai={ai}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
@@ -236,12 +246,14 @@ export function KeyInfluencers({
     ...d,
     signed: d.direction === "up" ? d.impact : -d.impact,
   }));
+  const anim = useChartAnimation();
+  const hover = useSeriesHover();
 
   return (
     <ChartFrame title={title} description="What drives the metric" className={className}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <CartesianGrid horizontal={false} />
           <XAxis
             type="number"
             domain={[-0.5, 0.5]}
@@ -251,18 +263,19 @@ export function KeyInfluencers({
           />
           <YAxis type="category" dataKey="factor" width={96} tickLine={false} axisLine={false} />
           <Tooltip
-            formatter={(value) => formatPercent(Math.abs(Number(value ?? 0)))}
-            contentStyle={{
-              background: "var(--chart-tooltip-bg)",
-              border: "1px solid var(--chart-tooltip-border)",
-              borderRadius: 8,
-            }}
+            content={
+              <ChartTooltip
+                valueFormatter={(n) => formatPercent(Math.abs(n))}
+              />
+            }
           />
-          <Bar dataKey="signed" radius={[0, 4, 4, 0]} barSize={18}>
+          <Bar dataKey="signed" radius={[0, 4, 4, 0]} barSize={18} {...anim}>
             {chartData.map((entry) => (
               <Cell
                 key={entry.factor}
                 fill={entry.direction === "up" ? SEMANTIC.positive : SEMANTIC.negative}
+                fillOpacity={hover.opacityFor(entry.factor)}
+                {...hover.bind(entry.factor)}
               />
             ))}
           </Bar>
@@ -379,6 +392,7 @@ export function AnomalyDetection({
   className?: string;
 }) {
   const anomalies = data.filter((d) => d.anomaly);
+  const anim = useChartAnimation();
 
   return (
     <ChartFrame
@@ -394,17 +408,20 @@ export function AnomalyDetection({
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(v) => formatCompact(v)} />
-          <Tooltip
-            contentStyle={{
-              background: "var(--chart-tooltip-bg)",
-              border: "1px solid var(--chart-tooltip-border)",
-              borderRadius: 8,
-            }}
+          <Tooltip content={<ChartTooltip />} />
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            stroke={CHART_COLORS[0]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
           />
-          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
           {anomalies.map((point) => (
             <ReferenceDot
               key={point.date}
@@ -464,6 +481,8 @@ export function AutoQAChart({
   question?: string;
   className?: string;
 }) {
+  const anim = useChartAnimation();
+
   return (
     <ChartFrame
       title="Q&A result"
@@ -478,18 +497,14 @@ export function AutoQAChart({
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={timeSeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(v) => formatCompact(v)} />
-          <Tooltip
-            contentStyle={{
-              background: "var(--chart-tooltip-bg)",
-              border: "1px solid var(--chart-tooltip-border)",
-              borderRadius: 8,
-            }}
-          />
-          <Bar dataKey="revenue" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.85} />
-          <Line type="monotone" dataKey="forecast" stroke={CHART_COLORS[1]} strokeDasharray="4 4" dot={false} />
+          <Tooltip content={<ChartTooltip />} />
+          <Bar dataKey="revenue" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.85} {...anim} />
+          {/* Dashed projection line — the dash reads as "not actuals", so it
+              keeps the thin reference treatment rather than the 2.25 data line. */}
+          <Line type="monotone" dataKey="forecast" stroke={CHART_COLORS[1]} strokeDasharray="4 4" dot={false} {...anim} />
         </ComposedChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -599,6 +614,8 @@ export function AutoQAMap({
 }
 
 export function AnomalyOverlayDemo({ className }: { className?: string }) {
+  const anim = useChartAnimation();
+
   return (
     <ChartFrame
       title="Anomaly overlay"
@@ -608,18 +625,21 @@ export function AnomalyOverlayDemo({ className }: { className?: string }) {
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={defaultAnomalies} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(v) => formatCompact(v)} />
-          <Tooltip
-            contentStyle={{
-              background: "var(--chart-tooltip-bg)",
-              border: "1px solid var(--chart-tooltip-border)",
-              borderRadius: 8,
-            }}
+          <Tooltip content={<ChartTooltip />} />
+          <Bar dataKey="forecast" fill={CHART_COLORS[1]} opacity={0.2} radius={[4, 4, 0, 0]} {...anim} />
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            stroke={CHART_COLORS[0]}
+            strokeWidth={2.25}
+            strokeLinecap="round"
+            dot={{ r: 3 }}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
           />
-          <Bar dataKey="forecast" fill={CHART_COLORS[1]} opacity={0.2} radius={[4, 4, 0, 0]} />
-          <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ r: 3 }} />
           {defaultAnomalies
             .filter((d) => d.anomaly)
             .map((point) => (
@@ -646,6 +666,7 @@ export function ForecastDemo({ className }: { className?: string }) {
     { date: "Oct", revenue: null, cost: null, forecast: 6800 },
     { date: "Nov", revenue: null, cost: null, forecast: 7100 },
   ];
+  const anim = useChartAnimation();
 
   return (
     <ChartFrame
@@ -656,24 +677,22 @@ export function ForecastDemo({ className }: { className?: string }) {
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={forecastData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tickLine={false} axisLine={false} />
           <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(v) => formatCompact(v)} />
-          <Tooltip
-            contentStyle={{
-              background: "var(--chart-tooltip-bg)",
-              border: "1px solid var(--chart-tooltip-border)",
-              borderRadius: 8,
-            }}
-          />
+          <Tooltip content={<ChartTooltip />} />
           <Line
             type="monotone"
             dataKey="revenue"
             stroke={CHART_COLORS[0]}
-            strokeWidth={2}
+            strokeWidth={2.25}
+            strokeLinecap="round"
             connectNulls={false}
-            dot={{ r: 3 }}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            {...anim}
           />
+          {/* Dashed projection — keeps the reference-line treatment. */}
           <Line
             type="monotone"
             dataKey="forecast"
@@ -682,6 +701,7 @@ export function ForecastDemo({ className }: { className?: string }) {
             strokeDasharray="6 4"
             connectNulls
             dot={false}
+            {...anim}
           />
         </ComposedChart>
       </ResponsiveContainer>
