@@ -77,7 +77,9 @@ test("word clouds and ribbon charts reject malformed public inputs safely", () =
 
 test("hierarchy slicers do not nest form controls inside buttons", () => {
   const markup = render(HierarchicalSlicer);
-  assert.match(markup, /<label[^>]*><input/);
+  // Checkbox chrome may wrap <input> in a span for the painted box; still require
+  // the control to live under a <label>, never under a <button>.
+  assert.match(markup, /<label\b[\s\S]*?<input\b/);
   assert.doesNotMatch(markup, /<button\b(?:(?!<\/button>)[\s\S])*<input\b/);
 });
 
