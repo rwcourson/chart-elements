@@ -47,7 +47,7 @@
     "catalog:check": "node scripts/check-catalog.mjs",
     "gallery:static-check": "node scripts/check-static-gallery.mjs",
     "build:packages": "pnpm --filter './packages/**' run build",
-    "test:source": "node --test src/lib/__tests__/*.test.mjs src/components/maps/__tests__/*.test.mjs src/components/reports/__tests__/*.test.mjs",
+    "test:source": "node --experimental-strip-types --test src/lib/__tests__/*.test.mjs src/components/maps/__tests__/*.test.mjs src/components/reports/__tests__/*.test.mjs",
     "test:packages": "pnpm --filter './packages/**' --if-present run test",
     "examples:build": "pnpm --filter @chart-elements/example-next run build && pnpm --filter @chart-elements/example-vite run build",
     "examples:packed": "node scripts/verify-packed-consumers.mjs",
