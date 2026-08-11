@@ -1,0 +1,21 @@
+{
+  "name": "@chart-elements/example-vite",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build && node scripts/assert-react-runtime.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@rwcourson/chart-elements": "workspace:*",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5",
+    "vite": "^7.1.5"
+  }
+}

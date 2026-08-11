@@ -11,20 +11,20 @@ pnpm install
 pnpm dev
 ```
 
-- **Live demo:** [chart-elements.vercel.app](https://chart-elements.vercel.app) (Vercel · BG Rob)
+- **Live demo:** [chart-elements.vercel.app](https://chart-elements.vercel.app)
 - Repo: [github.com/rwcourson/chart-elements](https://github.com/rwcourson/chart-elements)
 - Home — `/`
 - Gallery (every visual) — `/gallery`
 
-In the header you can switch **light/dark** and preview **chart palettes** (Berry default, plus B&G Time, Ocean, Sunset, Forest, Slate, Vivid). Palette choice is stored in `localStorage` and applied via `data-palette` on `<html>`.
+In the header you can switch **light/dark** and preview **chart palettes** (Neutral default, plus Berry, Ocean, Sunset, Forest, Slate, and Vivid). Palette choice is stored in `localStorage` and applied via `data-palette` on `<html>`.
 
 ## Status
 
-Pre-1.0. The component surface is stable enough to build on, but prop names are still being unified across families (see [Known gaps](#known-gaps)). This package is **not published to npm** — see [Consuming it](#consuming-it).
+Pre-1.0. The component surface is stable enough to build on, but prop names are still being unified across families (see [Known gaps](#known-gaps)). A curated set of high-traffic gallery entries is marked **verified** after craft review; most of the catalog remains in `review` until similarly evidenced. The compiled package is prepared under `packages/chart-elements` as `@rwcourson/chart-elements`, but it has **not been published to npm**.
 
 ## Consuming it
 
-`package.json` is marked `private`. Use one of these paths (details in [docs/INTEGRATION.md](./docs/INTEGRATION.md)):
+Use one of these paths while the scoped package is awaiting its first release (details in [docs/INTEGRATION.md](./docs/INTEGRATION.md)):
 
 **1. Copy the source in (shadcn style).** Copy the folders you want out of `src/components/` plus `src/lib/utils.ts`, `src/lib/chart-colors.ts`, and the token block from `src/app/globals.css`. Components import each other through the `@/*` path alias, so your `tsconfig.json` needs:
 
@@ -32,32 +32,51 @@ Pre-1.0. The component surface is stable enough to build on, but prop names are 
 { "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }
 ```
 
-**2. Workspace or git dependency.** An `exports` map is defined for subpath imports:
+**2. Compiled workspace package.** The demo, CI fixtures, and downstream monorepos can consume the real ESM/declaration output without sharing this repo's `@/*` alias:
 
 ```ts
-import { BarColumnChart, ChartFrame } from "chart-elements/charts";
-import { ModernCard, RadialGauge } from "chart-elements/cards";
-import { SearchableSlicer } from "chart-elements/slicers";
-import { ThemeProvider } from "chart-elements/theme";
+import { BarColumnChart, ChartFrame } from "@rwcourson/chart-elements/charts";
+import { ModernCard, RadialGauge } from "@rwcourson/chart-elements/cards";
+import { SearchableSlicer } from "@rwcourson/chart-elements/slicers";
+import { VegaLiteChart } from "@rwcourson/chart-elements/declarative";
 ```
 
 ```bash
-# after the repo is on GitHub
-pnpm add github:rwcourson/chart-elements
+pnpm build:packages
+pnpm --filter @rwcourson/chart-elements pack
 ```
 
-Add `transpilePackages: ["chart-elements"]` in `next.config.ts`. The `exports` map points at TypeScript source — Next must transpile it. Publishing to npm would additionally require a build step to emit JS and resolve the `@/*` alias — that is deliberately not set up yet.
+The tarball ships compiled ESM, declarations, source maps, and precompiled CSS; consumers do not need `transpilePackages` or this repository's path alias. Do not install the repository root as a git dependency—the root is the private workspace/demo, not the package.
+
+Package styles are deliberately opt-in and split by responsibility:
+
+```ts
+import "@rwcourson/chart-elements/tokens.css"; // optional default tokens
+import "@rwcourson/chart-elements/components.css"; // component utilities and chart polish
+// import "@rwcourson/chart-elements/palettes.css"; // optional demo palettes
+```
+
+`components.css` (also available at the legacy `styles.css` path) contains no
+Tailwind preflight, document reset, `body`, global universal selector, or root
+token definitions. Its rules live in a named `chart-elements` cascade layer so
+ordinary application CSS keeps precedence.
 
 ### Peer dependencies
 
-`react` 19, `react-dom` 19, `next` 16, `recharts` 3, `d3` 7, `lucide-react`, `next-themes`, `tailwindcss` 4. Node >= 20.9.
+`react` and `react-dom` `^18.2 || ^19` are peers. Charting, declarative
+rendering, icon, date, and utility libraries are package dependencies. Theme
+state remains consumer-owned; the optional token stylesheet responds to a
+`.dark` class without requiring a theme-provider package. Next.js and Tailwind
+are demo/build dependencies rather than consumer peers. Node >= 18 is
+sufficient to consume the library; Node >= 20.19 is required to work in this
+repository because the compatibility fixtures use Vite 7.
 
 ## Usage
 
 Charts are unopinionated about layout; `ChartFrame` supplies the card, title and a measured plot area.
 
 ```tsx
-import { ChartFrame, BarColumnChart } from "@/components/charts";
+import { ChartFrame, BarColumnChart } from "@rwcourson/chart-elements/charts";
 
 <ChartFrame title="Revenue by region" description="FY26 to date" height={280}>
   <BarColumnChart
@@ -124,7 +143,7 @@ Light/dark is wired with `next-themes`; wrap your app in `ThemeProvider` and dro
 
 ### Preview palettes (demo site)
 
-The gallery ships a `PalettePicker` that swaps accent + chart series via `html[data-palette="…"]` overrides in `src/app/palettes.css`. Defaults to **Berry**. Useful for stakeholder previews; product apps usually pin one brand palette in CSS instead.
+The gallery ships a `PalettePicker` that swaps accent + chart series via `html[data-palette="…"]` overrides in `src/app/palettes.css`. Defaults to **Neutral**. Useful for stakeholder previews; product apps usually pin one palette in CSS instead.
 
 ## Structure
 
@@ -134,7 +153,7 @@ The gallery ships a `PalettePicker` that swaps accent + chart series via `html[d
 | `src/components/cards` | KPI cards, scorecards, gauges, progress |
 | `src/components/tables` | Tables, matrices, conditional formatting |
 | `src/components/slicers` | List, button, dropdown, numeric, date, hierarchy and text slicers |
-| `src/components/maps` | Hex and tile/grid layouts (listed); choropleth, bubble, route, cartogram and floor plan (present but parked — see Known gaps) |
+| `src/components/maps` | Provider-free GeoJSON/projection renderers, validated routes and points, clustering, reference layers, and clearly named schematic layouts; most are present but parked from the gallery (see Known gaps) |
 | `src/components/analytics` | Decomposition tree, key influencers, Q&A, anomaly detection |
 | `src/components/navigation` | Buttons, page and bookmark navigators |
 | `src/components/shapes` | Text boxes, images, shapes |
@@ -150,22 +169,27 @@ The gallery ships a `PalettePicker` that swaps accent + chart series via `html[d
 | Script | Purpose |
 |---|---|
 | `pnpm dev` | Local dev server and gallery |
-| `pnpm build` | Production build |
+| `pnpm build` | Production demo build |
+| `pnpm build:packages` | Build ESM, declarations, source maps, CLI/registry, and package CSS |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | ESLint |
-| `pnpm verify` | typecheck + lint + build |
+| `pnpm package:validate` | Validate exports, tarball contents, metadata, and type resolution |
+| `pnpm examples:packed` | Install the exact tarball in clean React 18/Vite and React 19/Next fixtures and build both |
+| `pnpm sbom` / `pnpm sbom:check` | Generate or validate deterministic CycloneDX package SBOMs |
+| `pnpm verify` | Full source, package, test, demo, and consumer-fixture release gate |
 | `pnpm catalog` | Regenerate the gallery registry |
 
 ## Known gaps
 
 Honest accounting of what is not finished:
 
-- **Geographic maps are parked.** Only the hex and tile/grid layouts are in the gallery — those are matrix visuals on an abstract lattice, with no cartography involved. The choropleth, bubble, route, floor-plan and building-layout components still live in `src/components/maps` but are not listed, because their geography is schematic: simplified inline SVG paths rather than real GeoJSON projections. To re-enable them, widen `KEPT_MAPS` in `scripts/generate-catalog.mjs` and run `pnpm catalog`.
+- **Most geographic maps are parked from the gallery.** The provider-free map package now accepts real GeoJSON, projects geographic coordinates with D3, validates route and point data, and keeps floor-plan/building layouts explicitly schematic. The generated gallery currently lists the hex and tile/grid layouts plus an explicit unconfigured-provider state; the choropleth, bubble, route, clustering, reference-layer, floor-plan and related renderers remain exported but unlisted until their public gallery recipes and dataset provenance are reviewed. To list them, widen `KEPT_MAPS` in `scripts/generate-catalog.mjs` and run `pnpm catalog`.
 - **Vendor visuals are analogues, not SDKs.** Power Apps/Automate and the R/Python script hosts are rendered as React/SVG lookalikes so the catalog is visually complete. They do not talk to any vendor service, and integrating the real SDKs is out of scope.
 - **Prop naming is not fully unified.** Category keys appear as `categoryKey` (bar/line/combo) and `nameKey` (pie/funnel); series keys appear as `seriesKeys`, `barKeys`/`lineKeys` (combo) and `keys` (radar). Unifying these is a planned breaking change.
 - **`className` / `height` coverage is uneven.** Maps, slicers, navigation and shapes accept `className`; most cartesian charts size to their container and expect `ChartFrame` to own height.
-- **Not npm-publishable yet.** No build step emits JS or rewrites the `@/*` alias.
+- **Not published yet.** The scoped package build and validation path exists, but npm scope ownership and the first release review remain explicit gates.
 - **Some catalog entries share an implementation.** A few Power BI list items are variants differentiated by title rather than by distinct code.
+- **Verification is curated, not universal.** Only a small hero set is `verified` (see `docs/VISUAL_AUDIT.md`); the rest stay `review` until they earn the same evidence ladder.
 
 ## Accessibility
 
@@ -173,7 +197,9 @@ Focus rings derive from `--ring`. Icon-only controls carry `aria-label`s, form c
 
 ## Design credit
 
-The palette, typography and control metrics follow the **B&G Time** design system: Manrope, a navy accent, soft hairlines, 10px controls and 16px panels. Layout and composition patterns are inspired by [shadcn/ui](https://ui.shadcn.com); no shadcn code is vendored.
+Chart Elements uses an independent neutral visual system with Manrope, soft
+hairlines, 10px controls, and 16px panels. Layout and composition patterns are
+inspired by [shadcn/ui](https://ui.shadcn.com); no shadcn code is vendored.
 
 ## License
 

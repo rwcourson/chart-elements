@@ -14,10 +14,10 @@ The gallery at `/gallery` is the fastest way to see a change across every visual
 ## Before opening a PR
 
 ```bash
-pnpm verify   # typecheck + lint + build
+pnpm verify
 ```
 
-All three must pass. Lint runs the React Compiler rules, which means **a variable declared outside a `.map()` callback must not be mutated from inside it**. Use a `reduce` or precompute offsets instead:
+This checks source quality, compiled package exports, package tests, npm tarball contents, the production gallery, and clean Next.js/Vite consumer fixtures. Lint runs the React Compiler rules, which means **a variable declared outside a `.map()` callback must not be mutated from inside it**. Use a `reduce` or precompute offsets instead:
 
 ```tsx
 // rejected by react-hooks/immutability
@@ -49,6 +49,19 @@ const laid = items.map((d, i) => ({
 2. Export it from that folder's `index.ts`.
 3. Register it in the gallery, then regenerate: `pnpm catalog`.
 4. Verify it renders in both themes at a couple of viewport widths.
+
+## Public package changes
+
+- Add a Changeset with `pnpm changeset` for user-visible API, behavior,
+  dependency, or packaging changes.
+- Keep `packages/chart-elements` as a build wrapper around canonical root source;
+  do not maintain a duplicate component tree.
+- Run `pnpm package:validate` after changing exports or dependencies and inspect
+  the tarball before release.
+- Contributions are accepted under the repository's MIT license. By submitting
+  a contribution, you confirm you have the right to license it on those terms.
+- Vendor names are descriptive only. Do not imply official Power BI, Azure,
+  Bing, ArcGIS, or other vendor integration without an actual supported SDK.
 
 ## Commits
 

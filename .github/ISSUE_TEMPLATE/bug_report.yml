@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible defect in a component, package, or gallery.
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Please search existing issues and remove private data from reproductions.
+  - type: input
+    id: version
+    attributes:
+      label: Package version or commit
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Charts
+        - Cards or gauges
+        - Tables
+        - Slicers
+        - Maps
+        - Analytics or overlays
+        - Navigation, shapes, or UI
+        - Packaging, CLI, registry, or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include data, props, framework/version, viewport, and theme.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and evidence
+      description: Include console output or screenshots when relevant.
+    validations:
+      required: true

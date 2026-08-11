@@ -1,10 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Cell,
+  Pie,
+  PieChart,
+  Sector,
+  Tooltip} from "recharts";
+import { ChartResponsiveContainer } from "./chart-responsive";
+import type { Props as SectorProps } from "recharts/types/shape/Sector";
 import { colorAt, SEMANTIC } from "@/lib/chart-colors";
+import { CHART_TOOLTIP_CLASS } from "@/lib/chart-marks";
 import { useChartAnimation } from "@/lib/chart-motion";
-import { ChartTooltip } from "./chart-tooltip";
+import { ChartEmpty } from "./chart-frame";
 
 const RAD = Math.PI / 180;
 
@@ -34,7 +42,8 @@ function Callout(props: {
   const tx = ex + (toRight ? shelf : -shelf);
 
   return (
-    <g>
+    // Labels live in a higher z-index layer; never intercept wedge hits.
+    <g style={{ pointerEvents: "none" }}>
       <polyline
         points={`${cx + (outerRadius + 2) * cos},${cy + (outerRadius + 2) * sin} ${ex},${ey} ${tx},${ey}`}
         fill="none"
@@ -51,9 +60,100 @@ function Callout(props: {
         fontWeight={500}
       >
         {payload.name}
-        <tspan fill="var(--muted-foreground)"> {Math.round(payload.share * 100)}%</tspan>
+        <tspan fill="var(--muted-foreground)">
+          {" "}
+          {Math.round(payload.share * 100)}%
+        </tspan>
       </text>
     </g>
+  );
+}
+
+/**
+ * Hover isolation via Recharts activeIndex (tooltip state), not CSS :hover.
+ * CSS :hover fails as soon as the HTML tooltip sits under the cursor; the
+ * library already tracks which sector is active for the tooltip, so dimming
+ * follows that same signal.
+ */
+function ActiveSector(props: SectorProps) {
+  return (
+    <Sector
+      {...props}
+      stroke="var(--card)"
+      strokeWidth={2}
+      fillOpacity={1}
+      style={{ outline: "none", cursor: "pointer", ...props.style }}
+    />
+  );
+}
+
+function InactiveSector(props: SectorProps) {
+  return (
+    <Sector
+      {...props}
+      stroke="var(--card)"
+      strokeWidth={2}
+      fillOpacity={0.34}
+      style={{ outline: "none", cursor: "pointer", ...props.style }}
+    />
+  );
+}
+
+/** Pie/donut tooltip: always show share %, matching callout labels. */
+function PieTooltip(props: {
+  active?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Recharts tooltip payload is a deep union; narrow at runtime.
+  payload?: readonly any[];
+}) {
+  const { active, payload } = props;
+  if (!active || !payload?.length) return null;
+  const item = payload[0] as {
+    name?: string | number;
+    value?: number | string | readonly (string | number)[];
+    color?: string;
+    payload?: Slice | Record<string, unknown>;
+  };
+  if (!item) return null;
+  const raw = item.payload;
+  const slice =
+    raw && typeof raw === "object" && "share" in raw
+      ? (raw as Slice)
+      : undefined;
+  const name = String(slice?.name ?? item.name ?? "");
+  const numericValue =
+    typeof item.value === "number"
+      ? item.value
+      : Array.isArray(item.value)
+        ? Number(item.value[0])
+        : Number(item.value);
+  const sharePct =
+    slice && Number.isFinite(slice.share)
+      ? Math.round(slice.share * 100)
+      : Number.isFinite(numericValue)
+        ? Math.round(numericValue)
+        : null;
+  const display = sharePct != null ? `${sharePct}%` : String(item.value ?? "");
+  const color = slice?.color ?? item.color;
+  const announcement = `${name}: ${display}`;
+
+  return (
+    <div
+      className={CHART_TOOLTIP_CLASS}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={announcement}
+    >
+      <div className="flex items-baseline gap-2 text-xs">
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 shrink-0 translate-y-px rounded-full"
+          style={{ background: color }}
+        />
+        <span className="text-muted-foreground">{name}</span>
+        <span className="ml-auto pl-4 font-semibold tabular-nums">{display}</span>
+      </div>
+    </div>
   );
 }
 
@@ -65,8 +165,7 @@ export function PieDonutChart({
   innerLabel,
   showLabels = true,
   showLegend,
-  maxSlices = 8,
-}: {
+  maxSlices = 8}: {
   data: Record<string, string | number>[];
   nameKey?: string;
   valueKey?: string;
@@ -83,8 +182,7 @@ export function PieDonutChart({
     const rows = data
       .map((d) => ({
         name: String(d[nameKey] ?? ""),
-        value: Number(d[valueKey] ?? 0),
-      }))
+        value: Number(d[valueKey] ?? 0)}))
       // Descending, so the eye reads the wedges in rank order from 12 o'clock
       // and the thin tail collects together instead of being scattered.
       .sort((a, b) => b.value - a.value);
@@ -94,8 +192,7 @@ export function PieDonutChart({
     if (tail.length) {
       kept.push({
         name: "Others",
-        value: tail.reduce((sum, r) => sum + r.value, 0),
-      });
+        value: tail.reduce((sum, r) => sum + r.value, 0)});
     }
 
     const total = kept.reduce((sum, r) => sum + r.value, 0) || 1;
@@ -103,46 +200,55 @@ export function PieDonutChart({
       ...r,
       share: r.value / total,
       color:
-        tail.length && i === kept.length - 1 ? SEMANTIC.neutral : colorAt(i),
-    }));
+        tail.length && i === kept.length - 1 ? SEMANTIC.neutral : colorAt(i)}));
   }, [data, nameKey, valueKey, maxSlices]);
 
   const withLegend = showLegend ?? !showLabels;
   const anim = useChartAnimation();
 
+  if (!slices.length || slices.every((s) => s.value <= 0)) {
+    return <ChartEmpty label="No valid slices" />;
+  }
+
   return (
     <div className="flex h-full w-full flex-col">
-      {/* The plot owns its own box so the pie is centred in it. That lets the
-          donut's inner label be a plain centred overlay, and keeps the legend
-          out of the SVG where its type and colour can't be styled properly. */}
       {/*
-        ce-pie: hover isolation is pure CSS (globals.css). Driving it from
-        React state re-runs Recharts' sector animation on every hover, and
-        Recharts hides labels while animating — the callouts flickered off
-        on every hover.
+        Plot owns its own box so the pie is centred; donut inner label is an
+        overlay. Hover isolation uses activeShape/inactiveShape (tooltip
+        activeIndex) — not CSS :hover, which loses to the HTML tooltip layer.
       */}
       <div className="ce-pie relative min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%">
+        <ChartResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Tooltip content={<ChartTooltip />} />
+            <Tooltip
+              // Render-prop form so Recharts always injects active/payload.
+              content={(tooltipProps) => (
+                <PieTooltip
+                  active={tooltipProps.active}
+                  payload={tooltipProps.payload}
+                />
+              )}
+              // Keep the panel out of the hit-test path so wedges stay active.
+              wrapperStyle={{ pointerEvents: "none" }}
+            />
             <Pie
               data={slices}
               dataKey="value"
               nameKey="name"
-              // 12 o'clock, clockwise — the conventional reading order for a
-              // ranked pie. Recharts' default starts at 3 o'clock.
+              // 12 o'clock, clockwise — conventional reading order for a ranked pie.
               startAngle={90}
               endAngle={-270}
               innerRadius={variant === "donut" ? "56%" : 0}
-              // Leaves a gutter wide enough for the callouts; without it the
-              // labels render outside the SVG viewport and are clipped.
+              // Gutter for callouts; without it labels clip at the SVG edge.
               outerRadius={showLabels ? "70%" : "82%"}
-              // No paddingAngle wedge: the card-coloured stroke already draws
-              // a clean straight divider between slices.
               paddingAngle={0}
               stroke="var(--card)"
               strokeWidth={2}
               {...anim}
+              // Dim siblings while a sector is the tooltip target. Uses library
+              // activeIndex, not pointer :hover — survives tooltip mounting.
+              activeShape={ActiveSector}
+              inactiveShape={InactiveSector}
               label={showLabels ? (Callout as never) : false}
               labelLine={false}
             >
@@ -151,7 +257,7 @@ export function PieDonutChart({
               ))}
             </Pie>
           </PieChart>
-        </ResponsiveContainer>
+        </ChartResponsiveContainer>
         {variant === "donut" && innerLabel ? (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <span className="tabular text-sm font-semibold text-foreground">

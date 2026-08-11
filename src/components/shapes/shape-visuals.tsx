@@ -5,170 +5,296 @@ import { ImageIcon, Type } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
-type VisualFrameProps = {
+export interface VisualFrameProps {
   className?: string;
   children: React.ReactNode;
-  title?: string;
-};
+  frameTitle?: React.ReactNode;
+  /** Set false when composing the visual inside an existing card or chart frame. */
+  framed?: boolean;
+}
 
-function VisualFrame({ className, children, title }: VisualFrameProps) {
+function VisualFrame({
+  className,
+  children,
+  frameTitle,
+  framed = true,
+}: VisualFrameProps) {
+  if (!framed) {
+    return <div className={cn("min-w-0", className)}>{children}</div>;
+  }
+
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      {title ? (
+    <Card className={cn("min-w-0 overflow-hidden", className)}>
+      {frameTitle ? (
         <div className="border-b border-border px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {title}
+          {frameTitle}
         </div>
       ) : null}
-      <CardContent className="p-0">{children}</CardContent>
+      <CardContent className="min-w-0 p-0">{children}</CardContent>
     </Card>
   );
 }
 
-export function ImageVisual({
-  src,
-  alt = "Image visual",
-  className,
-  height = 200,
-}: {
+export type ImageFit = "cover" | "contain" | "fill" | "none" | "scale-down";
+
+export interface ImageSourceModel {
+  src: string;
+  alt: string;
+  caption?: React.ReactNode;
+}
+
+export interface ImageFallbackState {
+  src?: string;
+  alt: string;
+  reason: "missing" | "error";
+}
+
+export type ImageFallback =
+  | React.ReactNode
+  | ((state: ImageFallbackState) => React.ReactNode);
+
+export interface ImageVisualProps {
+  source?: ImageSourceModel;
   src?: string;
   alt?: string;
+  caption?: React.ReactNode;
+  fallback?: ImageFallback;
+  fit?: ImageFit;
+  objectPosition?: React.CSSProperties["objectPosition"];
   className?: string;
+  imageClassName?: string;
   height?: number | string;
-}) {
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
+  loading?: "eager" | "lazy";
+  decoding?: "async" | "auto" | "sync";
+  onLoad?: React.ReactEventHandler<HTMLImageElement>;
+  onError?: React.ReactEventHandler<HTMLImageElement>;
+}
+
+function DefaultImageFallback({ alt, reason }: ImageFallbackState) {
   return (
-    <VisualFrame className={className} title="Image">
-      <div
-        className="relative flex items-center justify-center overflow-hidden bg-muted/40"
-        style={{ height: typeof height === "number" ? `${height}px` : height }}
-      >
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <ImageIcon className="h-8 w-8" />
-            <span className="text-xs">Image visual</span>
-          </div>
-        )}
-      </div>
-    </VisualFrame>
+    <div className="flex h-full min-h-24 w-full flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground">
+      <ImageIcon aria-hidden="true" className="h-8 w-8" />
+      <span className="text-xs">{reason === "error" ? `${alt || "Image"} unavailable` : alt || "Image visual"}</span>
+    </div>
   );
 }
 
-/**
- * Placeholder artwork is rendered as inline SVG (not a data URI) so that
- * `var(--…)` tokens resolve and the artwork follows light/dark theme.
- */
-function PlaceholderSurface({
+function renderImageFallback(fallback: ImageFallback | undefined, state: ImageFallbackState) {
+  if (typeof fallback === "function") return fallback(state);
+  if (fallback !== undefined) return fallback;
+  return <DefaultImageFallback {...state} />;
+}
+
+export function ImageVisual({
+  source,
+  src,
+  alt,
+  caption,
+  fallback,
+  fit = "cover",
+  objectPosition = "center",
   className,
-  height,
-  label,
-  children,
-}: {
-  className?: string;
-  height: number | string;
-  label: string;
-  children: React.ReactNode;
-}) {
+  imageClassName,
+  height = 200,
+  framed = true,
+  frameTitle = "Image",
+  loading = "lazy",
+  decoding = "async",
+  onLoad,
+  onError,
+}: ImageVisualProps) {
+  const resolvedSrc = src ?? source?.src;
+  const resolvedAlt = alt ?? source?.alt ?? "Image visual";
+  const resolvedCaption = caption ?? source?.caption;
+  const [failedSrc, setFailedSrc] = React.useState<string | null>(null);
+  const failureReason: ImageFallbackState["reason"] = resolvedSrc ? "error" : "missing";
+  const canRenderImage = Boolean(resolvedSrc && failedSrc !== resolvedSrc);
+
   return (
-    <VisualFrame className={className} title="Image">
-      <div
-        className="relative overflow-hidden"
-        style={{ height: typeof height === "number" ? `${height}px` : height }}
-      >
-        <svg
-          viewBox="0 0 400 200"
-          preserveAspectRatio="xMidYMid slice"
-          className="h-full w-full"
-          role="img"
-          aria-label={label}
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <figure className="min-w-0">
+        <div
+          className="relative flex min-w-0 items-center justify-center overflow-hidden bg-muted/40"
+          style={{ height: typeof height === "number" ? `${height}px` : height }}
         >
-          {children}
-        </svg>
-      </div>
+          {canRenderImage ? (
+            // A native image keeps this library compatible with arbitrary remote and data URLs.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={resolvedSrc}
+              src={resolvedSrc}
+              alt={resolvedAlt}
+              loading={loading}
+              decoding={decoding}
+              className={cn("h-full min-h-0 w-full min-w-0", imageClassName)}
+              style={{ objectFit: fit, objectPosition }}
+              onLoad={onLoad}
+              onError={(event) => {
+                setFailedSrc(resolvedSrc ?? null);
+                onError?.(event);
+              }}
+            />
+          ) : (
+            <div
+              className="h-full min-h-0 w-full min-w-0"
+              role={resolvedAlt ? "img" : undefined}
+              aria-label={resolvedAlt || undefined}
+            >
+              {renderImageFallback(fallback, {
+                src: resolvedSrc,
+                alt: resolvedAlt,
+                reason: failureReason,
+              })}
+            </div>
+          )}
+        </div>
+        {resolvedCaption ? (
+          <figcaption className="border-t border-border px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            {resolvedCaption}
+          </figcaption>
+        ) : null}
+      </figure>
     </VisualFrame>
   );
 }
 
-export function StaticImage({
-  className,
-  height = 160,
-}: {
-  className?: string;
-  height?: number;
-}) {
+function useSvgId(prefix: string) {
+  const reactId = React.useId();
+  return `${prefix}-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+
+function StaticImageFallback({ id, label }: { id: string; label: string }) {
   return (
-    <PlaceholderSurface className={className} height={height} label="Static placeholder image">
+    <svg
+      viewBox="0 0 400 200"
+      preserveAspectRatio="xMidYMid slice"
+      className="h-full w-full"
+      aria-hidden="true"
+    >
       <defs>
-        <linearGradient id="ce-static-image" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="var(--chart-1)" />
           <stop offset="100%" stopColor="var(--chart-2)" />
         </linearGradient>
       </defs>
-      <rect width="400" height="200" fill="url(#ce-static-image)" />
+      <rect width="400" height="200" fill={`url(#${id})`} />
+      <rect x="104" y="74" width="192" height="52" rx="10" fill="var(--card)" fillOpacity="0.92" />
       <text
         x="200"
-        y="108"
+        y="107"
         textAnchor="middle"
-        fill="var(--chart-label)"
-        fontSize="20"
+        fill="var(--foreground)"
+        fontSize="18"
         fontWeight="600"
       >
-        Static Image
+        {label}
       </text>
-    </PlaceholderSurface>
+    </svg>
+  );
+}
+
+export interface StaticImageProps extends ImageVisualProps {
+  placeholderLabel?: string;
+}
+
+export function StaticImage({
+  source,
+  alt,
+  fallback,
+  height = 160,
+  frameTitle = "Static image",
+  placeholderLabel = "Static image",
+  ...props
+}: StaticImageProps) {
+  const gradientId = useSvgId("ce-static-image");
+  return (
+    <ImageVisual
+      {...props}
+      source={source}
+      alt={alt ?? source?.alt ?? "Static image"}
+      height={height}
+      frameTitle={frameTitle}
+      fallback={fallback === undefined
+        ? <StaticImageFallback id={gradientId} label={placeholderLabel} />
+        : fallback}
+    />
+  );
+}
+
+export interface DynamicImageProps extends ImageVisualProps {
+  /** Key used to select an entry from sources and label the default fallback. */
+  value?: string;
+  sources?: Readonly<Record<string, ImageSourceModel | undefined>>;
+}
+
+function DynamicImageFallback({ value }: { value: string }) {
+  return (
+    <div className="flex h-full min-h-24 items-center justify-center bg-[var(--background-deep)] p-6">
+      <div className="w-full max-w-sm min-w-0 rounded-[var(--radius)] border border-border bg-card px-4 py-5 text-center shadow-[var(--card-shadow)]">
+        <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+          Image unavailable
+        </div>
+        <div className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground">
+          {value}
+        </div>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Provide a source for this field to render media.
+        </p>
+      </div>
+    </div>
   );
 }
 
 export function DynamicImage({
   value = "Q4 Revenue",
-  className,
+  sources,
+  source,
+  src,
+  alt,
+  caption,
+  fallback,
   height = 160,
-}: {
-  value?: string;
-  className?: string;
-  height?: number;
-}) {
+  frameTitle = "Dynamic image",
+  ...props
+}: DynamicImageProps) {
+  const selectedSource = source ?? sources?.[value];
+  const resolvedSrc = src ?? selectedSource?.src;
+  const resolvedAlt = alt ?? selectedSource?.alt ?? value;
+  const resolvedCaption = caption ?? selectedSource?.caption;
+
   return (
-    <PlaceholderSurface className={className} height={height} label={value}>
-      <rect width="400" height="200" fill="var(--background-deep)" />
-      <rect
-        x="24"
-        y="24"
-        width="352"
-        height="152"
-        rx="12"
-        fill="var(--card)"
-        stroke="var(--border)"
-      />
-      <text x="200" y="96" textAnchor="middle" fill="var(--muted-foreground)" fontSize="12">
-        Dynamic field
-      </text>
-      <text
-        x="200"
-        y="124"
-        textAnchor="middle"
-        fill="var(--foreground)"
-        fontSize="22"
-        fontWeight="600"
-      >
-        {value}
-      </text>
-    </PlaceholderSurface>
+    <ImageVisual
+      {...props}
+      source={selectedSource}
+      src={resolvedSrc}
+      alt={resolvedAlt}
+      caption={resolvedCaption}
+      height={height}
+      frameTitle={frameTitle}
+      fallback={fallback === undefined ? <DynamicImageFallback value={value} /> : fallback}
+    />
   );
+}
+
+export interface TextBoxProps {
+  text?: React.ReactNode;
+  className?: string;
+  align?: "left" | "center" | "right";
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
 }
 
 export function TextBox({
   text = "Add a text box to annotate your report.",
   className,
   align = "left",
-}: {
-  text?: string;
-  className?: string;
-  align?: "left" | "center" | "right";
-}) {
+  framed = true,
+  frameTitle = "Text box",
+}: TextBoxProps) {
   return (
-    <VisualFrame className={className} title="Text box">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
       <div
         className={cn(
           "min-h-[80px] p-4 text-sm leading-relaxed text-foreground",
@@ -182,148 +308,224 @@ export function TextBox({
   );
 }
 
+export interface DynamicTextProps {
+  field?: React.ReactNode;
+  value?: React.ReactNode;
+  className?: string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
+}
+
 export function DynamicText({
   field = "Total Revenue",
   value = "$2.84M",
   className,
-}: {
-  field?: string;
-  value?: string;
-  className?: string;
-}) {
+  framed = true,
+  frameTitle = "Dynamic text",
+}: DynamicTextProps) {
   return (
-    <VisualFrame className={className} title="Dynamic text">
-      <div className="flex min-h-[88px] flex-col justify-center gap-1 p-4">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Type className="h-3 w-3" />
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <dl className="flex min-h-[88px] flex-col justify-center gap-1 p-4">
+        <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Type aria-hidden="true" className="h-3 w-3" />
           {field}
-        </div>
-        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-      </div>
+        </dt>
+        <dd className="m-0 text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
+      </dl>
     </VisualFrame>
   );
+}
+
+export interface RectangleShapeProps {
+  className?: string;
+  fill?: string;
+  label?: React.ReactNode;
+  labelColor?: string;
+  ariaLabel?: string;
+  width?: number | string;
+  height?: number | string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
 }
 
 export function RectangleShape({
   className,
   fill = "var(--accent)",
   label,
+  labelColor = "var(--accent-foreground)",
+  ariaLabel,
   width = "100%",
   height = 120,
-}: {
-  className?: string;
-  fill?: string;
-  label?: string;
-  width?: number | string;
-  height?: number | string;
-}) {
+  framed = true,
+  frameTitle = "Rectangle",
+}: RectangleShapeProps) {
   return (
-    <VisualFrame className={className} title="Rectangle">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
       <div
-        className="relative flex items-center justify-center"
+        className="relative flex max-w-full min-w-0 items-center justify-center overflow-hidden"
+        role={ariaLabel ? "img" : undefined}
+        aria-label={ariaLabel}
         style={{
           width: typeof width === "number" ? `${width}px` : width,
+          maxWidth: "100%",
           height: typeof height === "number" ? `${height}px` : height,
         }}
       >
         <div
-          className="h-full w-full rounded-sm border border-border/60 opacity-90"
+          aria-hidden="true"
+          className="h-full w-full rounded-sm border border-border/60"
           style={{ backgroundColor: fill }}
         />
         {label ? (
-          <span className="absolute text-xs font-medium text-[var(--chart-label)] drop-shadow-sm">{label}</span>
+          <span className="absolute max-w-full px-2 text-center text-xs font-medium" style={{ color: labelColor }}>
+            {label}
+          </span>
         ) : null}
       </div>
     </VisualFrame>
   );
 }
 
+export interface OvalShapeProps {
+  className?: string;
+  fill?: string;
+  label?: React.ReactNode;
+  labelColor?: string;
+  ariaLabel?: string;
+  width?: number | string;
+  height?: number | string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
+}
+
 export function OvalShape({
   className,
   fill = "var(--chart-2)",
+  label,
+  labelColor = "var(--chart-on-2, var(--foreground))",
+  ariaLabel,
   width = 160,
   height = 100,
-}: {
-  className?: string;
-  fill?: string;
-  width?: number;
-  height?: number;
-}) {
+  framed = true,
+  frameTitle = "Oval",
+}: OvalShapeProps) {
   return (
-    <VisualFrame className={className} title="Oval">
-      <div className="flex items-center justify-center p-6">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <div className="flex min-w-0 items-center justify-center overflow-hidden p-6">
         <div
-          className="border border-border/60 opacity-90"
+          className="flex max-w-full min-w-0 items-center justify-center overflow-hidden rounded-[9999px] border border-border/60"
+          role={ariaLabel ? "img" : undefined}
+          aria-label={ariaLabel}
           style={{
-            width,
-            height,
-            borderRadius: "9999px",
+            width: typeof width === "number" ? `${width}px` : width,
+            maxWidth: "100%",
+            height: typeof height === "number" ? `${height}px` : height,
             backgroundColor: fill,
           }}
-        />
+        >
+          {label ? (
+            <span className="max-w-full px-3 text-center text-xs font-medium" style={{ color: labelColor }}>
+              {label}
+            </span>
+          ) : null}
+        </div>
       </div>
     </VisualFrame>
   );
+}
+
+export interface LineShapeProps {
+  className?: string;
+  color?: string;
+  orientation?: "horizontal" | "vertical";
+  thickness?: number;
+  ariaLabel?: string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
 }
 
 export function LineShape({
   className,
   color = "var(--foreground)",
   orientation = "horizontal",
-}: {
-  className?: string;
-  color?: string;
-  orientation?: "horizontal" | "vertical";
-}) {
+  thickness = 1,
+  ariaLabel,
+  framed = true,
+  frameTitle = "Line",
+}: LineShapeProps) {
   return (
-    <VisualFrame className={className} title="Line">
-      <div className="flex h-24 items-center justify-center p-4">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <div
+        className="flex h-24 min-w-0 items-center justify-center overflow-hidden p-4"
+        role="separator"
+        aria-orientation={orientation}
+        aria-label={ariaLabel}
+      >
         <div
-          className={cn(
-            orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
-          )}
-          style={{ backgroundColor: color }}
+          aria-hidden="true"
+          className={orientation === "horizontal" ? "w-full" : "h-full"}
+          style={orientation === "horizontal"
+            ? { height: `${thickness}px`, backgroundColor: color }
+            : { width: `${thickness}px`, backgroundColor: color }}
         />
       </div>
     </VisualFrame>
   );
 }
 
+export interface ArrowShapeProps {
+  className?: string;
+  color?: string;
+  direction?: "right" | "left" | "up" | "down";
+  ariaLabel?: string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
+}
+
+const arrowPaths = {
+  right: { viewBox: "0 0 120 24", line: "M4 12 H96", head: "M96 4 L116 12 L96 20 Z" },
+  left: { viewBox: "0 0 120 24", line: "M24 12 H116", head: "M24 4 L4 12 L24 20 Z" },
+  down: { viewBox: "0 0 24 120", line: "M12 4 V96", head: "M4 96 L12 116 L20 96 Z" },
+  up: { viewBox: "0 0 24 120", line: "M12 24 V116", head: "M4 24 L12 4 L20 24 Z" },
+} as const;
+
 export function ArrowShape({
   className,
   color = "var(--accent)",
   direction = "right",
-}: {
-  className?: string;
-  color?: string;
-  direction?: "right" | "left" | "up" | "down";
-}) {
-  const rotation = {
-    right: 0,
-    down: 90,
-    left: 180,
-    up: 270,
-  }[direction];
+  ariaLabel,
+  framed = true,
+  frameTitle = "Arrow",
+}: ArrowShapeProps) {
+  const path = arrowPaths[direction];
+  const isVertical = direction === "up" || direction === "down";
 
   return (
-    <VisualFrame className={className} title="Arrow">
-      <div className="flex h-24 items-center justify-center p-4">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <div className="flex h-24 min-w-0 items-center justify-center overflow-hidden p-4">
         <svg
-          width="120"
-          height="24"
-          viewBox="0 0 120 24"
+          viewBox={path.viewBox}
           fill="none"
-          style={{ transform: `rotate(${rotation}deg)` }}
+          className={isVertical ? "h-16 w-8 max-w-full" : "h-8 w-full max-w-[120px]"}
+          role="img"
+          aria-label={ariaLabel ?? `${direction} arrow`}
         >
-          <path d="M0 12 H96" stroke={color} strokeWidth="2" />
-          <path
-            d="M96 4 L112 12 L96 20 Z"
-            fill={color}
-          />
+          <path d={path.line} stroke={color} strokeWidth="2" strokeLinecap="round" />
+          <path d={path.head} fill={color} />
         </svg>
       </div>
     </VisualFrame>
   );
+}
+
+export interface ReportShapeProps {
+  className?: string;
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  value?: React.ReactNode;
+  ariaLabel?: string;
+  framed?: boolean;
+  frameTitle?: React.ReactNode;
 }
 
 export function ReportShape({
@@ -331,28 +533,25 @@ export function ReportShape({
   title = "KPI callout",
   subtitle = "vs. prior period",
   value = "+12.4%",
-}: {
-  className?: string;
-  title?: string;
-  subtitle?: string;
-  value?: string;
-}) {
+  ariaLabel,
+  framed = true,
+  frameTitle = "Shape",
+}: ReportShapeProps) {
   return (
-    <VisualFrame className={className} title="Shape">
-      {/*
-        Was a dashed rect with a clip-path that ate the top-right corner — it
-        read as a broken selection outline. A complete callout frame is the
-        report-shape pattern.
-      */}
-      <div className="flex min-h-[140px] items-center p-4">
-        <div className="w-full rounded-[var(--radius)] border border-dashed border-[var(--border-strong)] bg-[var(--accent-soft)] px-4 py-3.5">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <VisualFrame className={className} frameTitle={frameTitle} framed={framed}>
+      <div className="flex min-h-[140px] min-w-0 items-center p-4">
+        <div
+          className="w-full min-w-0 rounded-[var(--radius)] border border-dashed border-[var(--border-strong)] bg-[var(--accent-soft)] px-4 py-3.5"
+          role={ariaLabel ? "group" : undefined}
+          aria-label={ariaLabel}
+        >
+          <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {title}
           </div>
-          <div className="mt-1 text-2xl font-bold tracking-[-0.02em] tabular-nums text-accent">
+          <div className="mt-1 truncate text-2xl font-bold tracking-[-0.02em] tabular-nums text-foreground">
             {value}
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>
         </div>
       </div>
     </VisualFrame>

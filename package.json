@@ -1,7 +1,8 @@
 {
-  "name": "chart-elements",
+  "name": "chart-elements-workspace",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "A Power BI–style data visualization component suite for Next.js and Tailwind CSS, with light/dark theming driven entirely by CSS variables.",
   "license": "MIT",
   "keywords": [
@@ -26,6 +27,7 @@
     "./tables": "./src/components/tables/index.ts",
     "./slicers": "./src/components/slicers/index.ts",
     "./maps": "./src/components/maps/index.ts",
+    "./reports": "./src/components/reports/index.ts",
     "./analytics": "./src/components/analytics/index.ts",
     "./navigation": "./src/components/navigation/index.ts",
     "./shapes": "./src/components/shapes/index.ts",
@@ -42,34 +44,60 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "catalog": "node scripts/generate-catalog.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm build"
+    "catalog:check": "node scripts/check-catalog.mjs",
+    "gallery:static-check": "node scripts/check-static-gallery.mjs",
+    "build:packages": "pnpm --filter './packages/**' run build",
+    "test:source": "node --test src/lib/__tests__/*.test.mjs src/components/maps/__tests__/*.test.mjs src/components/reports/__tests__/*.test.mjs",
+    "test:packages": "pnpm --filter './packages/**' --if-present run test",
+    "examples:build": "pnpm --filter @chart-elements/example-next run build && pnpm --filter @chart-elements/example-vite run build",
+    "examples:packed": "node scripts/verify-packed-consumers.mjs",
+    "brand:check": "node scripts/check-brand.mjs",
+    "actions:check": "node scripts/check-actions.mjs",
+    "licenses:check": "node scripts/check-licenses.mjs",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "sbom:check": "node scripts/generate-sbom.mjs --check",
+    "package:validate": "pnpm brand:check && pnpm actions:check && node scripts/validate-package.mjs && pnpm licenses:check && pnpm sbom:check && pnpm --filter './packages/**' --if-present run validate",
+    "verify": "pnpm typecheck && pnpm lint && pnpm catalog:check && pnpm test:source && pnpm build:packages && pnpm test:packages && pnpm package:validate && pnpm build && pnpm gallery:static-check && pnpm examples:build && pnpm examples:packed",
+    "changeset": "changeset",
+    "version:packages": "changeset version",
+    "release:check": "pnpm verify && changeset status",
+    "release": "changeset publish"
   },
   "dependencies": {
-    "@types/d3": "^7.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
     "date-fns": "^4.4.0",
+    "dompurify": "^3.4.13",
     "lucide-react": "^1.30.0",
     "next": "16.3.0",
     "next-themes": "^0.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "vega": "^6.3.1",
+    "vega-embed": "^7.1.0",
+    "vega-lite": "^6.4.3"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@changesets/cli": "^2.29.7",
+    "@tailwindcss/cli": "^4",
     "@tailwindcss/postcss": "^4",
+    "@types/d3": "^7.4.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "publint": "^0.3.12",
     "tailwindcss": "^4",
+    "tsup": "^8.5.0",
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.19.0"
   },
   "packageManager": "pnpm@10.30.3"
 }

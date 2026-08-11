@@ -93,11 +93,11 @@ export const matrixRows = [
 ];
 
 export const ohlc = [
-  { date: "Mon", open: 100, high: 112, low: 96, close: 108 },
-  { date: "Tue", open: 108, high: 118, low: 104, close: 110 },
-  { date: "Wed", open: 110, high: 115, low: 100, close: 102 },
-  { date: "Thu", open: 102, high: 120, low: 101, close: 118 },
-  { date: "Fri", open: 118, high: 125, low: 112, close: 122 },
+  { date: "Mon", open: 100, high: 112, low: 96, close: 108, volume: 1840 },
+  { date: "Tue", open: 108, high: 118, low: 104, close: 110, volume: 1320 },
+  { date: "Wed", open: 110, high: 115, low: 100, close: 102, volume: 2210 },
+  { date: "Thu", open: 102, high: 120, low: 101, close: 118, volume: 2760 },
+  { date: "Fri", open: 118, high: 125, low: 112, close: 122, volume: 1975 },
 ];
 
 export const distribution = Array.from({ length: 80 }, (_, i) => {
@@ -108,12 +108,68 @@ export const distribution = Array.from({ length: 80 }, (_, i) => {
 });
 
 export const ganttTasks = [
-  { id: "1", name: "Discovery", start: 0, end: 3, lane: 0 },
-  { id: "2", name: "Design", start: 2, end: 6, lane: 1 },
-  { id: "3", name: "Build", start: 5, end: 12, lane: 2 },
-  { id: "4", name: "QA", start: 10, end: 14, lane: 1 },
-  { id: "5", name: "Launch", start: 13, end: 15, lane: 0 },
+  { id: "1", name: "Discovery", start: 0, end: 3, lane: 0, group: "Plan", progress: 1, status: "complete" as const },
+  { id: "2", name: "Design", start: 2, end: 6, lane: 1, group: "Plan", progress: 0.8, dependencies: ["1"], status: "active" as const },
+  { id: "3", name: "Build", start: 5, end: 12, lane: 2, group: "Deliver", progress: 0.45, dependencies: ["2"], critical: true, status: "active" as const },
+  { id: "4", name: "QA", start: 10, end: 14, lane: 1, group: "Deliver", progress: 0.2, dependencies: ["3"], status: "planned" as const },
+  { id: "5", name: "Launch", start: 15, end: 15, lane: 0, group: "Deliver", progress: 0, dependencies: ["4"], milestone: true, status: "planned" as const },
 ];
+
+export const timelineEvents = [
+  { id: "kickoff", date: 0, label: "Kickoff", description: "Project charter approved", status: "complete" as const },
+  { id: "prototype", date: 4, label: "Prototype", description: "First interactive review", status: "complete" as const },
+  { id: "beta", date: 10, label: "Beta", description: "Community testing begins", status: "active" as const },
+  { id: "launch", date: 15, label: "Launch", description: "Stable release", status: "planned" as const },
+];
+
+export const animatedTimelineFrames = timelineEvents.map((_, index) => ({
+  id: `timeline-frame-${index + 1}`,
+  label: `${index + 1} of ${timelineEvents.length} project events`,
+  events: timelineEvents.slice(0, index + 1),
+}));
+
+export const barRaceFrames = [
+  { label: "Q1", values: [{ name: "North", value: 128 }, { name: "South", value: 112 }, { name: "East", value: 96 }, { name: "West", value: 84 }] },
+  { label: "Q2", values: [{ name: "North", value: 142 }, { name: "South", value: 118 }, { name: "East", value: 126 }, { name: "West", value: 91 }] },
+  { label: "Q3", values: [{ name: "North", value: 150 }, { name: "South", value: 139 }, { name: "East", value: 136 }, { name: "West", value: 110 }] },
+  { label: "Q4", values: [{ name: "North", value: 164 }, { name: "South", value: 151 }, { name: "East", value: 158 }, { name: "West", value: 124 }] },
+];
+
+export const animatedScatterFrames = [
+  { label: "2023", points: [{ id: "A", x: 24, y: 38, size: 18, category: "Core" }, { id: "B", x: 54, y: 48, size: 12, category: "Growth" }, { id: "C", x: 76, y: 66, size: 16, category: "Core" }] },
+  { label: "2024", points: [{ id: "A", x: 32, y: 44, size: 20, category: "Core" }, { id: "B", x: 62, y: 61, size: 15, category: "Growth" }, { id: "C", x: 72, y: 78, size: 18, category: "Core" }] },
+  { label: "2025", points: [{ id: "A", x: 45, y: 56, size: 22, category: "Core" }, { id: "B", x: 70, y: 74, size: 18, category: "Growth" }, { id: "C", x: 82, y: 84, size: 19, category: "Core" }] },
+];
+
+export const galleryImages = [
+  { id: "revenue", src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 400'%3E%3Crect width='640' height='400' fill='%232563eb'/%3E%3Cpath d='M60 310L170 240L270 265L390 140L580 80' fill='none' stroke='white' stroke-width='18' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E", alt: "Rising white trend line on a blue field", caption: "Revenue momentum" },
+  { id: "distribution", src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 400'%3E%3Crect width='640' height='400' fill='%230f766e'/%3E%3Cg fill='white' fill-opacity='.82'%3E%3Ccircle cx='160' cy='220' r='70'/%3E%3Ccircle cx='320' cy='150' r='110'/%3E%3Ccircle cx='500' cy='250' r='90'/%3E%3C/g%3E%3C/svg%3E", alt: "Three overlapping white circles on a teal field", caption: "Segment distribution" },
+  { id: "operations", src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 400'%3E%3Crect width='640' height='400' fill='%239a3412'/%3E%3Cg fill='white'%3E%3Crect x='70' y='230' width='90' height='100' rx='12'/%3E%3Crect x='205' y='170' width='90' height='160' rx='12'/%3E%3Crect x='340' y='110' width='90' height='220' rx='12'/%3E%3Crect x='475' y='55' width='90' height='275' rx='12'/%3E%3C/g%3E%3C/svg%3E", alt: "Four ascending white columns on a rust field", caption: "Operational growth" },
+];
+
+export const gallerySafeHtml = `
+  <article>
+    <h3>Quarterly operating summary</h3>
+    <p><strong>Revenue increased 8.2%</strong> while return volume declined.</p>
+    <table>
+      <thead><tr><th>Region</th><th>Revenue</th></tr></thead>
+      <tbody><tr><td>West</td><td>$1.42M</td></tr><tr><td>East</td><td>$1.18M</td></tr></tbody>
+    </table>
+  </article>
+`;
+
+export const gallerySafeSvg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 220">
+    <defs><linearGradient id="bar-fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#315fbb"/><stop offset="1" stop-color="#1f6b4a"/></linearGradient></defs>
+    <g fill="url(#bar-fill)">
+      <rect x="44" y="118" width="54" height="70" rx="5"/>
+      <rect x="126" y="82" width="54" height="106" rx="5"/>
+      <rect x="208" y="48" width="54" height="140" rx="5"/>
+      <rect x="290" y="28" width="54" height="160" rx="5"/>
+    </g>
+    <path d="M24 188H382" stroke="#98a2b3"/>
+  </svg>
+`;
 
 export const sankeyNodes = [
   { name: "Website" },
@@ -132,8 +188,9 @@ export const sankeyLinks = [
   { source: 3, target: 5, value: 35 },
 ];
 
+const CALENDAR_FIXTURE_START = Date.UTC(2026, 0, 1);
 export const calendarHeat = Array.from({ length: 84 }, (_, i) => ({
-  day: i,
+  date: new Date(CALENDAR_FIXTURE_START + i * 86_400_000).toISOString().slice(0, 10),
   value: (i * 7 + 3) % 12,
 }));
 
@@ -149,3 +206,176 @@ export const words = [
   { text: "LTV", value: 30 },
   { text: "margin", value: 24 },
 ];
+
+/** Gallery-only inline specifications for the declarative renderer entries. */
+export const vegaBarSpec: VisualizationSpec = {
+  $schema: "https://vega.github.io/schema/vega/v6.json",
+  description: "Revenue by region rendered from a Vega specification.",
+  width: 360,
+  height: 210,
+  padding: 8,
+  autosize: { type: "fit", contains: "padding" },
+  data: [
+    {
+      name: "table",
+      values: salesByRegion.map((row) => ({ region: row.name, revenue: row.sales })),
+    },
+  ],
+  scales: [
+    { name: "x", type: "band", domain: { data: "table", field: "region" }, range: "width", padding: 0.22 },
+    { name: "y", type: "linear", domain: { data: "table", field: "revenue" }, nice: true, zero: true, range: "height" },
+  ],
+  axes: [
+    { orient: "bottom", scale: "x", title: "Region" },
+    { orient: "left", scale: "y", title: "Revenue" },
+  ],
+  marks: [
+    {
+      type: "rect",
+      from: { data: "table" },
+      encode: {
+        enter: {
+          x: { scale: "x", field: "region" },
+          width: { scale: "x", band: 1 },
+          y: { scale: "y", field: "revenue" },
+          y2: { scale: "y", value: 0 },
+          cornerRadiusTopLeft: { value: 4 },
+          cornerRadiusTopRight: { value: 4 },
+          tooltip: { signal: "datum.region + ': ' + format(datum.revenue, ',.0f')" },
+        },
+        update: { fill: { value: "#315fbb" }, fillOpacity: { value: 0.88 } },
+        hover: { fillOpacity: { value: 1 } },
+      },
+    },
+  ],
+};
+
+export const vegaLiteScatterSpec: VisualizationSpec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+  description: "Profit versus sales rendered from a Vega-Lite specification.",
+  width: "container",
+  height: 220,
+  data: { values: salesByRegion },
+  mark: { type: "point", filled: true, size: 130, opacity: 0.88 },
+  encoding: {
+    x: { field: "sales", type: "quantitative", title: "Sales" },
+    y: { field: "profit", type: "quantitative", title: "Profit" },
+    color: { field: "name", type: "nominal", title: "Region" },
+    tooltip: [
+      { field: "name", type: "nominal", title: "Region" },
+      { field: "sales", type: "quantitative", title: "Sales" },
+      { field: "profit", type: "quantitative", title: "Profit" },
+    ],
+  },
+};
+
+export const denebCompatibleSpec: VisualizationSpec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+  description: "Interactive actual and forecast series in a Deneb-compatible Vega-Lite form.",
+  width: "container",
+  height: 220,
+  data: { values: timeSeries },
+  params: [
+    {
+      name: "hover",
+      select: { type: "point", fields: ["date"], nearest: true, on: "pointerover", clear: "pointerout" },
+    },
+  ],
+  layer: [
+    {
+      mark: { type: "line", strokeWidth: 2.5 },
+      encoding: {
+        x: { field: "date", type: "ordinal", title: "Month" },
+        y: { field: "revenue", type: "quantitative", title: "Value" },
+        color: { datum: "Actual", type: "nominal" },
+      },
+    },
+    {
+      mark: { type: "line", strokeDash: [6, 4], strokeWidth: 2 },
+      encoding: {
+        x: { field: "date", type: "ordinal" },
+        y: { field: "forecast", type: "quantitative" },
+        color: { datum: "Forecast", type: "nominal" },
+      },
+    },
+    {
+      transform: [{ filter: { param: "hover" } }],
+      mark: { type: "rule", color: "#98a2b3" },
+      encoding: {
+        x: { field: "date", type: "ordinal" },
+        tooltip: [
+          { field: "date", type: "ordinal", title: "Month" },
+          { field: "revenue", type: "quantitative", title: "Actual" },
+          { field: "forecast", type: "quantitative", title: "Forecast" },
+        ],
+      },
+    },
+  ],
+};
+
+export const scientificContourSpec: VisualizationSpec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+  description: "A sampled two-dimensional scalar field rendered as a scientific heat-contour surface.",
+  width: "container",
+  height: 220,
+  data: {
+    values: Array.from({ length: 117 }, (_, index) => {
+      const x = index % 13;
+      const y = Math.floor(index / 13);
+      const dx = x - 6;
+      const dy = y - 4;
+      return { x, y, value: Math.exp(-(dx * dx + dy * dy) / 16) };
+    }),
+  },
+  // Hover isolation: dim siblings and ring the active cell so the tooltip
+  // has a visible target on dense viridis grids.
+  params: [
+    {
+      name: "hover",
+      select: {
+        type: "point",
+        fields: ["x", "y"],
+        on: "pointerover",
+        clear: "pointerout",
+      },
+    },
+  ],
+  mark: { type: "rect", cursor: "pointer", strokeWidth: 1.5 },
+  encoding: {
+    x: { field: "x", type: "ordinal", title: "X sample" },
+    y: { field: "y", type: "ordinal", title: "Y sample", sort: "descending" },
+    color: {
+      field: "value",
+      type: "quantitative",
+      title: "Field value",
+      scale: { scheme: "viridis" },
+      legend: { orient: "right", titleOrient: "left" },
+    },
+    opacity: {
+      condition: { param: "hover", empty: false, value: 1 },
+      value: 0.72,
+    },
+    stroke: {
+      condition: { param: "hover", empty: false, value: "var(--foreground)" },
+      value: "transparent",
+    },
+    tooltip: [
+      { field: "x", type: "ordinal", title: "X" },
+      { field: "y", type: "ordinal", title: "Y" },
+      { field: "value", type: "quantitative", title: "Value", format: ".3f" },
+    ],
+  },
+};
+
+export const mlFeatureResult = {
+  kind: "feature-importance" as const,
+  modelLabel: "Retention classifier",
+  method: "Supplied permutation importance",
+  data: [
+    { feature: "Tenure", importance: 0.34 },
+    { feature: "Usage", importance: 0.27 },
+    { feature: "Support", importance: 0.18 },
+    { feature: "Plan", importance: 0.13 },
+  ],
+};
+import type { VisualizationSpec } from "vega-embed";

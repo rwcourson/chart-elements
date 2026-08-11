@@ -7,13 +7,20 @@ import {
   ComposedChart,
   Legend,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
+  YAxis} from "recharts";
+import { ChartResponsiveContainer } from "./chart-responsive";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import {
+  ACTIVE_DOT,
+  BAR_RADIUS_COLUMN,
+  BAR_RADIUS_STACKED,
+  MAX_BAR_SIZE_COMBO,
+  PLOT_MARGIN,
+  SERIES_STROKE_WIDTH} from "@/lib/chart-marks";
 import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
+import { ChartEmpty } from "./chart-frame";
 import { ChartTooltip, legendLabel } from "./chart-tooltip";
 
 export type ComboVariant =
@@ -28,8 +35,7 @@ export function ComboChart({
   categoryKey = "name",
   barKeys,
   lineKeys,
-  variant = "line-clustered-column",
-}: {
+  variant = "line-clustered-column"}: {
   data: Row[];
   categoryKey?: string;
   barKeys: string[];
@@ -43,9 +49,18 @@ export function ComboChart({
   const hover = useSeriesHover();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
 
+  if (!data.length || (!barKeys.length && !lineKeys.length)) {
+    return <ChartEmpty />;
+  }
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: dual ? 20 : 16, left: 4, bottom: 8 }}>
+    <ChartResponsiveContainer width="100%" height="100%">
+      <ComposedChart
+        data={data}
+        margin={{
+          ...PLOT_MARGIN,
+          right: dual ? 20 : PLOT_MARGIN.right}}
+      >
         <defs>
           {barKeys.map((key, i) => (
             // Same soft top-light fade as BarColumnChart.
@@ -75,8 +90,8 @@ export function ComboChart({
             stackId={stacked ? "bars" : undefined}
             fill={`url(#combo-${uid}-${i})`}
             fillOpacity={hover.opacityFor(key)}
-            radius={stacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
-            maxBarSize={32}
+            radius={stacked ? [...BAR_RADIUS_STACKED] : [...BAR_RADIUS_COLUMN]}
+            maxBarSize={MAX_BAR_SIZE_COMBO}
             {...anim}
             {...hover.bind(key)}
           />
@@ -88,16 +103,16 @@ export function ComboChart({
             type="monotone"
             dataKey={key}
             stroke={CHART_COLORS[(barKeys.length + i) % CHART_COLORS.length]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             strokeOpacity={hover.opacityFor(key)}
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
             {...hover.bind(key)}
           />
         ))}
       </ComposedChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }

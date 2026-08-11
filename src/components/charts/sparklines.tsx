@@ -1,42 +1,44 @@
 "use client";
 
 import * as React from "react";
-import { Bar, BarChart, Line, LineChart, ResponsiveContainer } from "recharts";
+import {Bar, BarChart, Line, LineChart} from "recharts";
+import { ChartResponsiveContainer } from "./chart-responsive";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { ACTIVE_DOT, SERIES_STROKE_WIDTH } from "@/lib/chart-marks";
 import { useChartAnimation } from "@/lib/chart-motion";
+import { ChartEmpty } from "./chart-frame";
 
 const defaultData = [4, 7, 5, 9, 6, 11, 8, 12, 9, 14].map((v, i) => ({ i, v }));
 
 export function LineSparkline({
   data = defaultData,
-  dataKey = "v",
-}: {
+  dataKey = "v"}: {
   data?: Record<string, number>[];
   dataKey?: string;
 }) {
   const anim = useChartAnimation();
+  if (!data.length) return <ChartEmpty label="No sparkline data" />;
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ChartResponsiveContainer width="100%" height="100%">
       <LineChart data={data}>
         <Line
           type="monotone"
           dataKey={dataKey}
           stroke={CHART_COLORS[0]}
-          strokeWidth={2.25}
+          strokeWidth={SERIES_STROKE_WIDTH}
           strokeLinecap="round"
           dot={false}
-          activeDot={{ r: 4, strokeWidth: 0 }}
+          activeDot={ACTIVE_DOT}
           {...anim}
         />
       </LineChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }
 
 export function ColumnSparkline({
   data = defaultData,
-  dataKey = "v",
-}: {
+  dataKey = "v"}: {
   data?: Record<string, number>[];
   dataKey?: string;
 }) {
@@ -44,8 +46,9 @@ export function ColumnSparkline({
   // Gradient ids must be unique per instance — two sparklines on one page
   // would otherwise reference the same <defs>.
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  if (!data.length) return <ChartEmpty label="No sparkline data" />;
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ChartResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
         <defs>
           {/* Depth without color math: the fill eases to 82% opacity toward
@@ -62,13 +65,12 @@ export function ColumnSparkline({
           {...anim}
         />
       </BarChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }
 
 export function DataBar({
-  value = 0.72,
-}: {
+  value = 0.72}: {
   value?: number;
 }) {
   return (

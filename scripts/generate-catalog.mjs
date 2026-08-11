@@ -32,7 +32,49 @@ function detectSelfFramed(dir) {
   return found;
 }
 
+/**
+ * Resolve public component names to their actual source module. The manifest's
+ * `source.module` remains the documented family entry point, while the gallery
+ * can load the leaf file and avoid turning one thumbnail into a request for the
+ * entire component suite.
+ */
+function detectLeafModules(dir) {
+  const modules = new Map();
+  const srcRoot = new URL("../src", import.meta.url).pathname.replace(/\/$/, "");
+  const walk = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(path);
+        continue;
+      }
+      if (!/\.(?:ts|tsx)$/.test(entry.name) || entry.name === "index.ts") continue;
+      const source = readFileSync(path, "utf8");
+      for (const match of source.matchAll(
+        /export\s+(?:async\s+)?(?:function|const|class)\s+([A-Z](?=[A-Za-z0-9]*[a-z])[A-Za-z0-9]*)/g,
+      )) {
+        const modulePath = `@${path
+          .slice(srcRoot.length)
+          .replace(/\\/g, "/")
+          .replace(/\.(?:ts|tsx)$/, "")}`;
+        const previous = modules.get(match[1]);
+        if (previous && previous !== modulePath) {
+          throw new Error(
+            `Component ${match[1]} is exported by multiple leaf modules: ${previous}, ${modulePath}`,
+          );
+        }
+        modules.set(match[1], modulePath);
+      }
+    }
+  };
+  walk(dir);
+  return modules;
+}
+
 const selfFramed = detectSelfFramed(
+  new URL("../src/components", import.meta.url).pathname,
+);
+const leafModules = detectLeafModules(
   new URL("../src/components", import.meta.url).pathname,
 );
 
@@ -74,15 +116,18 @@ const AUTO_HEIGHT_COMPONENTS = new Set([
   // drawn to fill their slot and stay pinned.
   "TextBox",
   "DynamicText",
+  // Form adapters size to their fields; a fixed frame clipped the submit row.
+  "PowerAppsVisual",
+  "PowerAutomateVisual",
 ]);
 
 /** Every slicer is a control panel, including the few borrowed by other categories. */
 const AUTO_HEIGHT_IMPORTS = new Set(["@/components/slicers"]);
 
-/** @type {{ category: string, id: string, title: string, importFrom: string, component: string, props?: string, height?: number | "auto" }[]} */
+/** @type {{ category: string, id: string, title: string, importFrom: string, component: string, props?: string, height?: number | "auto", semanticDistinction?: string }[]} */
 const items = [];
 
-function add(category, title, component, importFrom, props = "", height) {
+function add(category, title, component, importFrom, props = "", height, semanticDistinction) {
   const id = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -97,7 +142,211 @@ function add(category, title, component, importFrom, props = "", height) {
         AUTO_HEIGHT_IMPORTS.has(importFrom)
       ? "auto"
       : height;
-  items.push({ category, id, title, importFrom, component, props, height: resolved });
+  items.push({ category, id, title, importFrom, component, props, height: resolved, semanticDistinction });
+}
+
+/**
+ * Entries in this map intentionally stand in for something the backing
+ * component does not yet implement. They remain visible as roadmap inventory,
+ * but the manifest must never call them verified or silently present them as an
+ * equivalent visual.
+ */
+const PLACEHOLDER_TRUTH = new Map([]);
+
+/** Backing components known to be real work in progress after the semantic audit. */
+const IMPLEMENTING_COMPONENTS = new Set([]);
+
+/**
+ * Curated heroes that completed a craft + empty-state + theming verification pass.
+ * Do not mass-add entries — each note must reference real evidence (see docs/VISUAL_AUDIT.md).
+ * Paginated reports must stay ≤ review (enforced by package tests).
+ */
+const VERIFIED_HEROES = new Map([
+  [
+    "clustered-column-chart",
+    "Verified 2026-08-10: shared mark constants, empty state, gradient bars, series hover, light/dark tokens (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "clustered-bar-chart",
+    "Verified 2026-08-10: horizontal layout, shared margins/radius, empty state, hover isolation (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "line-chart",
+    "Verified 2026-08-10: SERIES_STROKE_WIDTH/ACTIVE_DOT, empty series, legend hover dim (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "area-chart",
+    "Verified 2026-08-10: area gradients, shared stroke, reduced-motion animation gate (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "pie-chart",
+    "Verified 2026-08-10: callout leaders, empty slices, CSS hover isolation, legend craft (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "donut-chart",
+    "Verified 2026-08-10: inner label, stroke dividers, empty state, token series colors (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "waterfall-chart",
+    "Verified 2026-08-10: shared tooltip tokens, semantic increase/decrease, empty path (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "line-and-clustered-column-chart",
+    "Verified 2026-08-10: combo empty state, shared bar/line marks, dual-series hover (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "funnel-chart",
+    "Verified 2026-08-10: custom SVG stages, empty invalid stages, series hover focus (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "scatter-plot",
+    "Verified 2026-08-10: shared plot margin, empty data, category colors from tokens (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "kpi-visual",
+    "Verified 2026-08-10: tabular values, semantic delta badges, card shadow tokens (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "radial-gauge",
+    "Verified 2026-08-10: meter ARIA, semantic thresholds, range notices (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "searchable-slicer",
+    "Verified 2026-08-10: focus rings, empty options copy, accent selection tokens (docs/VISUAL_AUDIT.md).",
+  ],
+  [
+    "table",
+    "Verified 2026-08-10: empty rows status UI, sticky header, token density (docs/VISUAL_AUDIT.md).",
+  ],
+]);
+
+/**
+ * Duplicate render recipes are allowed only when their complete id group is
+ * listed here. This turns an accidental copy/paste into a generation failure.
+ * The note is emitted as the alias distinction in the typed manifest.
+ *
+ * A new duplicate recipe must add a deliberate note to this truth ledger.
+ */
+const DOCUMENTED_DUPLICATE_RECIPE_GROUPS = new Map([
+  ["funnel-chart|funnel-variants", "Funnel variants currently reuses the base funnel recipe until distinct funnel options are supplied."],
+  ["hierarchical-matrix|matrix-with-subtotals", "Both labels intentionally demonstrate the same current subtotal configuration; hierarchy remains under review."],
+  ["matrix-with-grand-totals|pivot-style-matrix", "Both labels intentionally demonstrate the same current grand-total configuration; pivot behavior remains under review."],
+  ["conditional-backgrounds|table-matrix-with-conditional-background-colors", "The analytical-technique and table-family labels intentionally share one conditional-background recipe."],
+  ["conditional-icons|table-matrix-with-icons", "The analytical-technique and table-family labels intentionally share one conditional-icon recipe."],
+  ["conditional-data-bars|table-matrix-with-data-bars", "The analytical-technique and table-family labels intentionally share one data-bar recipe."],
+  ["modern-card-visual-card-with-reference-labels|modern-card-visual-single-card-layout", "The two card labels intentionally share the same reference-label card recipe."],
+  ["advanced-kpi|kpi-visual", "Advanced KPI currently aliases the base KPI recipe and is tracked separately as an extended-family label."],
+  ["decomposition-tree|expand-all-hierarchy", "Expand-all hierarchy intentionally demonstrates the existing decomposition-tree component."],
+  ["dynamic-data-driven-image|dynamic-images", "The visual-family and analytical-technique labels intentionally share one dynamic-image example."],
+  ["dynamic-data-bound-text|dynamic-labels", "The visual-family and analytical-technique labels intentionally share one dynamic-text example."],
+  ["density-plot|statistical-distribution-plot", "The generic distribution label intentionally aliases the density-plot recipe."],
+  ["kde-plot|kernel-density-plot", "KDE and kernel-density labels intentionally share the same estimator recipe."],
+  ["box-and-whisker-plot|box-plot", "Box-plot naming variants intentionally share the same component-default recipe."],
+  ["ridgeline-chart|ridgeline-plot", "Ridgeline naming variants intentionally share the same component-default recipe."],
+  ["correlation-heatmap|correlation-matrix|correlogram", "The three correlation labels intentionally share one correlogram recipe while naming different analytical contexts."],
+  ["heatmap|matrix-heatmap|statistical-heatmap", "The generic and matrix labels intentionally share one statistical-heatmap recipe."],
+  ["dendrogram|hierarchical-clustering-plot", "The hierarchical-clustering label intentionally aliases the dendrogram recipe."],
+  ["precision-recall-chart|precision-recall-curve", "Chart and curve naming variants intentionally share the same precision-recall recipe."],
+  ["regression-chart|regression-plot", "The regression naming variants intentionally share the same regression recipe."],
+  ["2d-density-plot|contour-chart|contour-plot", "The contour and density naming variants intentionally share one sampled-field contour recipe."],
+  ["error-bar-chart|error-bar-plot", "Chart and plot naming variants intentionally share the same error-bar recipe."],
+  ["time-series-analysis-chart|trend-analysis", "The generic time-series-analysis label intentionally aliases the current trend-analysis recipe."],
+  ["forecast-visualization|forecasting", "The statistical and analytical-technique labels intentionally share the same forecast demo."],
+  ["infographic-chart|waffle-chart", "The generic infographic label intentionally uses the waffle chart as its concrete example."],
+  ["drill-down|drill-up", "Drill-down and drill-up currently share one static drill-path demonstration."],
+  ["cross-filtering|cross-highlighting", "Cross-filter and cross-highlight currently share one static paired-chart demonstration."],
+  ["report-page-tooltips|visual-tooltips", "Both tooltip labels intentionally share the same tooltip demonstration."],
+]);
+
+const FIXTURE_IDS = [
+  "kpiMetrics",
+  "matrixRows",
+  "matrixRowsWithLinks",
+  "matrixRowsWithImages",
+  "partToWhole",
+  "salesByRegion",
+  "scatterPoints",
+  "animatedTimelineFrames",
+  "stackedSeries",
+  "treemapData",
+  "funnelStages",
+  "waterfallData",
+  "vegaBarSpec",
+  "vegaLiteScatterSpec",
+  "denebCompatibleSpec",
+  "gallerySafeHtml",
+  "gallerySafeSvg",
+  "scientificContourSpec",
+  "mlFeatureResult",
+];
+
+const SOURCE_DEPENDENCIES = {
+  "@/components/charts": ["react", "recharts", "d3", "lucide-react"],
+  "@/components/cards": ["react", "recharts", "lucide-react"],
+  "@/components/tables": ["react", "lucide-react"],
+  "@/components/slicers": ["react", "date-fns", "lucide-react"],
+  "@/components/maps": ["react", "d3"],
+  "@/components/reports": ["react"],
+  "@/components/analytics": ["react", "recharts", "lucide-react"],
+  "@/components/navigation": ["react", "lucide-react"],
+  "@/components/shapes": ["react", "lucide-react"],
+  "@/components/overlays": ["react", "recharts"],
+  "@/components/declarative": ["react", "vega", "vega-lite", "vega-embed"],
+  "@/components/content": ["react", "dompurify"],
+  "@/components/integrations": ["react", "lucide-react"],
+};
+
+function normalizedRecipe(item) {
+  return `${item.component}|${item.props.replace(/\s+/g, " ").trim()}`;
+}
+
+function duplicateGroupKey(group) {
+  return group.map((item) => item.id).sort().join("|");
+}
+
+function explicitVariant(item) {
+  return item.props.match(/\bvariant="([^"]+)"/)?.[1] ?? null;
+}
+
+function fixtureFor(item) {
+  const ids = FIXTURE_IDS.filter((id) => new RegExp(`\\b${id}\\b`).test(item.props));
+  if (ids.length) return { kind: "catalog", ids };
+  if (item.component === "PaginatedReport") return { kind: "component-default", ids: [] };
+  if (!item.props) return { kind: "component-default", ids: [] };
+  return { kind: "none", ids: [] };
+}
+
+function referenceKind(category) {
+  if (
+    /Power BI|Slicer|AI and Analytical|Natural-Language|Navigation|Embedded|Paginated/.test(
+      category,
+    )
+  ) {
+    return "power-bi";
+  }
+  if (/Text, Images|Cards, KPIs|KPI and Gauge/.test(category)) {
+    return "component-pattern";
+  }
+  return "chart-convention";
+}
+
+function capabilitiesFor(item, fixture, selfFramedEntry) {
+  const capabilities = ["themed"];
+  if (
+    item.importFrom === "@/components/slicers" ||
+    item.importFrom === "@/components/navigation"
+  ) {
+    capabilities.push("interactive-control");
+  } else {
+    capabilities.push("visualization", "responsive-container");
+  }
+  if (fixture.kind === "catalog") capabilities.push("catalog-fixture", "consumer-data");
+  else if (item.props) capabilities.push("consumer-data");
+  if (fixture.kind === "component-default") capabilities.push("component-default-fixture");
+  if (/Animated|Scrolling|Ticker|Carousel/.test(item.component)) capabilities.push("animated");
+  if (selfFramedEntry) capabilities.push("self-framed");
+  if (PLACEHOLDER_TRUTH.has(item.id)) capabilities.push("demo-only");
+  return [...new Set(capabilities)];
 }
 
 // 1. Bar and Column
@@ -214,11 +463,11 @@ const cardCat = "Cards, KPIs, and Gauges";
 // 9. Maps
 const mapCat = "Geographic and Map Visualizations";
 const maps = [
-  ["Azure Maps", "BubbleMap"],
+  ["Azure Maps", "AzureMapsAdapter"],
   ["Shape Map", "ShapeMap"],
   ["Basic / Bubble Map", "BubbleMap"],
   ["Filled / Choropleth Map", "FilledChoroplethMap"],
-  ["ArcGIS for Power BI", "ReferenceLayerMap"],
+  ["ArcGIS for Power BI", "ArcGISMapsAdapter"],
   ["Bubble map", "BubbleMap"],
   ["Proportional-symbol map", "ProportionalSymbolMap"],
   ["3D column map", "Column3DMap"],
@@ -276,9 +525,9 @@ const aiCat = "AI and Analytical Visuals";
 
 const nlCat = "Natural-Language Visualization";
 [
-  ["Q&A visual", "QAVisual"],
-  ["Other compatible visuals selected by the Q&A engine", "QAVisual"],
-].forEach(([t, c]) => add(nlCat, t, c, "@/components/analytics"));
+  ["Q&A visual", "QAVisual", ""],
+  ["Other compatible visuals selected by the Q&A engine", "QAEngineVisual", "mock"],
+].forEach(([t, c, props]) => add(nlCat, t, c, "@/components/analytics", props));
 
 // 12. Slicers
 const slicerCat = "Slicer Visualizations";
@@ -358,8 +607,8 @@ const navCat = "Navigation and Interactivity Visuals";
 ].forEach(([t, c]) => add(navCat, t, c, "@/components/navigation", "", 180));
 
 // 15. Embedded - provide React shells via analytics/shapes
-add("Embedded and Application Visuals", "Power Apps visual", "InputCollection", "@/components/slicers", "", 220);
-add("Embedded and Application Visuals", "Power Automate visual", "ProcessFlow", "@/components/charts");
+add("Embedded and Application Visuals", "Power Apps visual", "PowerAppsVisual", "@/components/integrations", "mock");
+add("Embedded and Application Visuals", "Power Automate visual", "PowerAutomateVisual", "@/components/integrations", `flowId="publish-report" mock`);
 
 // 16-17 Statistical (R/Python equivalents)
 const statCat = "Statistical & Scientific Charts";
@@ -386,7 +635,7 @@ const stats = [
   ["Faceted plots", "FacetedPlot"],
   ["Confidence-band plots", "ConfidenceBandPlot"],
   ["Network plots", "NetworkPlot"],
-  ["Specialized scientific plots", "ContourPlot"],
+  ["Specialized scientific plots", "ScientificSpecVisual", `spec={scientificContourSpec} methodLabel="Sampled scalar field" units="normalized intensity" reference="Vega-Lite rect encoding"`],
   ["KDE plot", "KernelDensityPlot"],
   ["Heatmap", "StatisticalHeatmap"],
   ["Correlation matrix", "Correlogram"],
@@ -397,33 +646,39 @@ const stats = [
   ["Statistical distribution plot", "DensityPlot"],
   ["Time-series analysis chart", "TrendAnalysis"],
   ["Forecast visualization", "ForecastDemo"],
-  ["Machine-learning result plots", "FeatureImportanceChart"],
+  ["Machine-learning result plots", "MachineLearningResultPlot", "result={mlFeatureResult}"],
   ["Cluster plots", "ClusterPlot"],
   ["PCA plots", "PCAPlot"],
   ["Confusion matrix", "ConfusionMatrix"],
   ["Feature-importance chart", "FeatureImportanceChart"],
   ["Precision-recall chart", "PrecisionRecallCurve"],
-  ["Custom Matplotlib visualizations", "FacetedPlot"],
+  ["Custom Matplotlib visualizations", "MatplotlibArtifact", `src={galleryImages[0].src} alt="Revenue trend exported from a Matplotlib workflow" format="svg" caption="Static artifact supplied by the caller"`],
 ];
-stats.forEach(([t, c]) => {
+stats.forEach(([t, c, props]) => {
   const from =
     c === "TrendAnalysis"
       ? "@/components/overlays"
       : c === "ForecastDemo"
         ? "@/components/analytics"
+        : c === "MachineLearningResultPlot"
+          ? "@/components/analytics"
+          : c === "ScientificSpecVisual"
+            ? "@/components/declarative"
+        : c === "MatplotlibArtifact"
+          ? "@/components/content"
         : "@/components/charts";
-  add(statCat, t, c, from);
+  add(statCat, t, c, from, props ?? "");
 });
 
 // 18 AppSource families already partly covered + extras
 const proj = "Project and Timeline Visuals";
 [
-  ["Gantt chart", "AnimatedTimeline"],
-  ["Advanced Gantt chart", "AnimatedTimeline"],
-  ["Timeline chart", "AnimatedTimeline"],
-  ["Milestone chart", "AnimatedTimeline"],
-  ["Project roadmap", "AnimatedTimeline"],
-].forEach(([t, c]) => add(proj, t, c, "@/components/charts"));
+  ["Gantt chart", "GanttChart", "data={ganttTasks}"],
+  ["Advanced Gantt chart", "AdvancedGanttChart", "data={ganttTasks}"],
+  ["Timeline chart", "TimelineChart", "events={timelineEvents}"],
+  ["Milestone chart", "MilestoneChart", "events={timelineEvents}"],
+  ["Project roadmap", "ProjectRoadmap", "data={ganttTasks}"],
+].forEach(([t, c, props]) => add(proj, t, c, "@/components/charts", props));
 
 const flow = "Flow and Network Visuals";
 [
@@ -513,13 +768,13 @@ const heat = "Heatmap and Matrix Visuals";
   ["Calendar heatmap", "CalendarHeatmap"],
   ["Matrix heatmap", "StatisticalHeatmap"],
   ["Correlation heatmap", "Correlogram"],
-  ["Risk matrix", "ConfusionMatrix"],
+  ["Risk matrix", "RiskMatrix"],
   ["Quadrant chart", "ScatterBubbleChart"],
 ].forEach(([t, c]) => {
   const from = c === "ScatterBubbleChart" ? "@/components/charts" : "@/components/charts";
   const props =
     c === "ScatterBubbleChart"
-      ? `data={scatterPoints} variant="scatter"`
+      ? `data={scatterPoints} variant="quadrant" xThreshold={60} yThreshold={50}`
       : "";
   add(heat, t, c, from, props);
 });
@@ -591,24 +846,32 @@ const textCal = "Text and Calendar Visuals";
 
 const anim = "Animated Visuals";
 [
-  ["Animated bar-race chart", "AnimatedBarRace"],
-  ["Animated scatter chart", "AnimatedScatter"],
-  ["Animated timeline", "AnimatedTimeline"],
-].forEach(([t, c]) => add(anim, t, c, "@/components/charts"));
+  ["Animated bar-race chart", "AnimatedBarRace", "frames={barRaceFrames}"],
+  ["Animated scatter chart", "AnimatedScatter", "frames={animatedScatterFrames}"],
+  ["Animated timeline", "AnimatedTimeline", "frames={animatedTimelineFrames}"],
+].forEach(([t, c, props]) => add(anim, t, c, "@/components/charts", props));
 
 const img = "Image, SVG, and HTML Visuals";
 [
-  ["Image grid", "ImageGrid"],
-  ["Image carousel", "ImageCarousel"],
-  ["SVG visualizations", "SunburstChart"],
-  ["HTML-based visualizations", "SmartNarrative"],
-].forEach(([t, c]) =>
-  add(img, t, c, c === "SmartNarrative" ? "@/components/analytics" : "@/components/charts"),
+  ["Image grid", "ImageGrid", "images={galleryImages}"],
+  ["Image carousel", "ImageCarousel", "images={galleryImages}"],
+  ["SVG visualizations", "SafeSvgVisual", `svg={gallerySafeSvg} title="Sanitized SVG column chart" description="Four ascending columns rendered from caller-supplied SVG."`],
+  ["HTML-based visualizations", "SafeHtmlVisual", `html={gallerySafeHtml} ariaLabel="Sanitized quarterly operating summary"`],
+].forEach(([t, c, props]) =>
+  add(
+    img,
+    t,
+    c,
+    c === "SafeSvgVisual" || c === "SafeHtmlVisual"
+      ? "@/components/content"
+      : "@/components/charts",
+    props,
+  ),
 );
 
-add("Grammar-of-Graphics / Declarative Visuals", "Vega charts", "FacetedPlot", "@/components/charts");
-add("Grammar-of-Graphics / Declarative Visuals", "Vega-Lite charts", "RegressionPlot", "@/components/charts");
-add("Grammar-of-Graphics / Declarative Visuals", "Deneb visuals", "ParallelCoordinates", "@/components/charts");
+add("Grammar-of-Graphics / Declarative Visuals", "Vega charts", "VegaChart", "@/components/declarative", "spec={vegaBarSpec}");
+add("Grammar-of-Graphics / Declarative Visuals", "Vega-Lite charts", "VegaLiteChart", "@/components/declarative", "spec={vegaLiteScatterSpec}");
+add("Grammar-of-Graphics / Declarative Visuals", "Deneb visuals", "DenebSpecRenderer", "@/components/declarative", "spec={denebCompatibleSpec} mode=\"vega-lite\"");
 
 // 19 Analytical techniques
 const tech = "Analytical and Formatting Techniques";
@@ -645,68 +908,65 @@ const tech = "Analytical and Formatting Techniques";
   ["Dynamic images", "DynamicImage", "@/components/shapes"],
 ].forEach(([t, c, from, p]) => add(tech, t, c, from, p || "", c.includes("Table") ? 280 : 260));
 
-// 20 Paginated variants (map to existing)
+// 20. Deterministic paginated-report configurations
 const pag = "Paginated Report Visualizations";
-[
-  ["Area", "LineAreaChart", `data={stackedSeries} categoryKey="name" seriesKeys={["product"]} variant="area"`],
-  ["Stacked area", "LineAreaChart", `data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="stacked-area"`],
-  ["100% stacked area", "LineAreaChart", `data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="percent-area"`],
-  ["Smooth area", "LineAreaChart", `data={stackedSeries} categoryKey="name" seriesKeys={["product"]} variant="area"`],
-  ["Bar", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales"]} variant="clustered-bar"`],
-  ["Stacked bar", "BarColumnChart", `data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar"`],
-  ["100% stacked bar", "BarColumnChart", `data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-bar"`],
-  ["3D clustered bar", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales","profit"]} variant="clustered-bar"`],
-  ["3D cylinder bar", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales"]} variant="clustered-bar"`],
-  ["Grouped stacked bar", "BarColumnChart", `data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar"`],
-  ["Column", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales"]} variant="clustered-column"`],
-  ["Stacked column", "BarColumnChart", `data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-column"`],
-  ["100% stacked column", "BarColumnChart", `data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-column"`],
-  ["3D clustered column", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales","profit"]} variant="clustered-column"`],
-  ["3D cylinder column", "BarColumnChart", `data={salesByRegion} seriesKeys={["sales"]} variant="clustered-column"`],
-  ["Smooth line", "LineAreaChart", `data={timeSeries} seriesKeys={["revenue"]} variant="spline"`],
-  ["Stepped line", "LineAreaChart", `data={timeSeries} seriesKeys={["revenue"]} variant="step"`],
-  ["Range chart", "RangeAreaChart", ""],
-  ["Smooth range", "RangeAreaChart", ""],
-  ["Range column", "BandChart", ""],
-  ["Range bar", "TornadoChart", ""],
-  ["Gantt-style range chart", "AnimatedTimeline", ""],
-  ["High-Low-Open-Close chart", "OHLCChart", ""],
-  ["Gauge ranges", "RadialGauge", `value={70} ranges={[{to:40,color:"var(--chart-negative)"},{to:75,color:"var(--chart-warning)"},{to:100,color:"var(--chart-positive)"}]}`],
-  ["Gauge pointers", "DialGauge", "value={55}"],
-  ["KPI indicators", "TrafficLightKpi", "metric={kpiMetrics[2]}"],
-  ["Indicators embedded in gauges", "RadialGauge", "value={88} label=\"Health\""],
-  ["Sparkline", "LineSparkline", ""],
-  ["Data bar", "DataBar", ""],
-  ["Indicator", "TrafficLightKpi", "metric={kpiMetrics[1]}"],
-  ["KPI status indicator", "KpiVisual", "metric={kpiMetrics[3]}"],
-  ["Map data region", "FilledChoroplethMap", ""],
-  ["Spatial map", "ShapeMap", ""],
-  ["ESRI shapefile-based map", "ReferenceLayerMap", ""],
-  ["SQL spatial map", "PolygonMap", ""],
-  ["Bing tile-backed map", "TileGridMap", ""],
-].forEach(([t, c, p]) => {
-  const from = [
-    "LineAreaChart",
-    "BarColumnChart",
-    "RangeAreaChart",
-    "BandChart",
-    "TornadoChart",
-    "AnimatedTimeline",
-    "OHLCChart",
-    "LineSparkline",
-    "DataBar",
-  ].includes(c)
-    ? "@/components/charts"
-    : ["RadialGauge", "DialGauge", "TrafficLightKpi", "KpiVisual"].includes(c)
-      ? "@/components/cards"
-      : "@/components/maps";
-  add(pag, t, c, from, p || "");
+const paginatedReportRecipes = [
+  ["Page measurement", "page-measurement", "Measures physical paper, printable body, margins, and point-to-inch conversion."],
+  ["Explicit page breaks", "explicit-page-breaks", "Starts a named detail row in a fresh flow frame without changing source order."],
+  ["Repeated table headers", "repeated-table-headers", "Repeats the detail-column header on every continuation frame."],
+  ["Group headers", "group-headers", "Creates one named section header before each geographic group."],
+  ["Nested groups", "nested-groups", "Nests deterministic team headers beneath geographic group headers."],
+  ["Group subtotals", "group-subtotals", "Calculates quantity and amount subtotal rows independently per group."],
+  ["Grand total", "grand-total", "Adds one report-level quantity and amount total after all detail rows."],
+  ["Running totals", "running-totals", "Displays a cumulative amount from the filtered and sorted row stream."],
+  ["Page numbers", "page-numbers", "Labels generated pages as page n of the deterministic total page count."],
+  ["First and last page sections", "first-last-page-sections", "Uses distinct first-page context and last-page completion sections."],
+  ["Keep groups together", "keep-groups-together", "Moves a fitting group to a fresh frame when remaining space is insufficient."],
+  ["Orphan control", "orphan-control", "Requires three detail rows to remain with a newly placed group header."],
+  ["Nested data regions", "nested-data-regions", "Places a measured matrix summary before the paginated detail region."],
+  ["Subreport region", "subreport-region", "Reserves measured flow space for an independently labeled nested subreport."],
+  ["Chart data region", "chart-data-region", "Renders a source-backed aggregate chart inside a measured report block."],
+  ["Table data region", "table-data-region", "Uses a fixed-column detail table as the primary paginated data region."],
+  ["Matrix data region", "matrix-data-region", "Cross-tabulates group and team amounts with row totals."],
+  ["List data region", "list-data-region", "Flows records as labeled list cards while retaining deterministic row heights."],
+  ["Two-column flow", "two-column-flow", "Flows continuation frames into two physical columns before adding a page."],
+  ["Letter landscape", "letter-landscape", "Measures against a 792 by 612 point US Letter landscape page."],
+  ["Legal portrait", "legal-portrait", "Measures against a 612 by 1008 point US Legal portrait page."],
+  ["Custom page size", "custom-page-size", "Uses an explicit 420 by 595 point page and custom margins."],
+  ["Print margin guide", "print-margin-guide", "Displays the printable boundary separately from paper edges and body content."],
+  ["Report header and footer", "report-header-footer", "Reserves non-flowing page header and footer bands around each body frame."],
+  ["Conditional group page breaks", "conditional-group-breaks", "Starts selected named groups on fresh pages while others flow naturally."],
+  ["Deterministic sort and group", "deterministic-sort-group", "Sorts by group, subgroup, and label with original-position tie breaking."],
+  ["Parameter and filter summary", "parameter-filter-summary", "Filters rows and records the active rule in a measured summary block."],
+  ["Document map", "document-map", "Builds a navigable group outline targeting stable report section anchors."],
+  ["Drillthrough links", "drillthrough-links", "Uses caller-supplied row destinations instead of inventing navigation targets."],
+  ["Monochrome print style", "monochrome-print-style", "Applies high-contrast monochrome styling without changing pagination."],
+  ["PDF export layout preview", "pdf-export-layout-preview", "Previews fixed page boxes and reserved bands without claiming a PDF-render baseline."],
+  ["Accessible reading order", "accessible-reading-order", "Exposes pages, columns, headers, details, and totals in deterministic DOM order."],
+];
+if (paginatedReportRecipes.length !== 32) {
+  throw new Error(`Paginated Report Visualizations must contain exactly 32 entries; found ${paginatedReportRecipes.length}.`);
+}
+paginatedReportRecipes.forEach(([title, variant, distinction]) => {
+  if (!distinction?.trim()) {
+    throw new Error(`Paginated report ${JSON.stringify(title)} needs a semantic distinction.`);
+  }
+  add(
+    pag,
+    title,
+    "PaginatedReport",
+    "@/components/reports",
+    `variant="${variant}" maxPreviewPages={2}`,
+    480,
+    distinction,
+  );
 });
 
 /**
- * Geographic visuals are parked for now. Only the grid and hex layouts stay:
- * those are really matrix visuals on an abstract lattice and carry no
- * cartography, projection or boundary data.
+ * Geographic visuals remain parked until their data fixtures and gallery
+ * recipes are reviewed individually. Only the explicitly schematic grid and
+ * hex matrices remain in the catalog. Provider adapters remain publicly
+ * exported, but do not masquerade as paginated-report data regions.
  *
  * The components are all still in `src/components/maps` — to bring them back,
  * widen `KEPT_MAPS` or delete this filter and run `pnpm catalog`.
@@ -715,44 +975,232 @@ const KEPT_MAPS = new Set(["HexMap", "TileGridMap"]);
 const isParkedMap = (it) =>
   it.importFrom === "@/components/maps" && !KEPT_MAPS.has(it.component);
 
-// Deduplicate by id within category
-const seen = new Set();
-const unique = items.filter((it) => {
-  if (isParkedMap(it)) return false;
-  const key = `${it.category}::${it.id}`;
-  if (seen.has(key)) return false;
-  seen.add(key);
-  return true;
-});
-
-const byImport = new Map();
-for (const it of unique) {
-  if (!byImport.has(it.importFrom)) byImport.set(it.importFrom, new Set());
-  byImport.get(it.importFrom).add(it.component);
+const catalogItems = items.filter((it) => !isParkedMap(it));
+const activePaginatedReports = catalogItems.filter((item) => item.category === pag);
+if (activePaginatedReports.length !== 32) {
+  throw new Error(
+    `Generated paginated-report family must contain exactly 32 entries; found ${activePaginatedReports.length}.`,
+  );
+}
+if (activePaginatedReports.some((item) => !item.semanticDistinction?.trim())) {
+  throw new Error("Every paginated-report entry needs a named semantic distinction.");
 }
 
-const importBlocks = [...byImport.entries()]
-  .map(([from, comps]) => {
-    const list = [...comps].sort().join(", ");
-    return `import { ${list} } from "${from}";`;
+// Truth ledgers must fail closed as the catalog evolves. A misspelled or
+// removed id/component should not leave dead metadata that appears enforced.
+const catalogIds = new Set(catalogItems.map((item) => item.id));
+for (const id of PLACEHOLDER_TRUTH.keys()) {
+  if (!catalogIds.has(id)) {
+    throw new Error(`Stale placeholder truth metadata for ${JSON.stringify(id)}.`);
+  }
+}
+const catalogComponents = new Set(catalogItems.map((item) => item.component));
+for (const component of IMPLEMENTING_COMPONENTS) {
+  if (!catalogComponents.has(component)) {
+    throw new Error(
+      `Stale implementing-component metadata for ${JSON.stringify(component)}.`,
+    );
+  }
+}
+
+// IDs are public links, so uniqueness is global rather than category-scoped.
+const ids = new Map();
+for (const item of catalogItems) {
+  const previous = ids.get(item.id);
+  if (previous) {
+    throw new Error(
+      `Duplicate catalog id ${JSON.stringify(item.id)}: ${previous.title} and ${item.title}`,
+    );
+  }
+  ids.set(item.id, item);
+}
+
+const recipeGroups = new Map();
+for (const item of catalogItems) {
+  const recipe = normalizedRecipe(item);
+  if (!recipeGroups.has(recipe)) recipeGroups.set(recipe, []);
+  recipeGroups.get(recipe).push(item);
+}
+
+const duplicateRecipeGroups = [...recipeGroups.values()].filter(
+  (group) => group.length > 1,
+);
+const usedDuplicateDocs = new Set();
+const undocumentedDuplicateRecipes = [];
+for (const group of duplicateRecipeGroups) {
+  const key = duplicateGroupKey(group);
+  const note = DOCUMENTED_DUPLICATE_RECIPE_GROUPS.get(key);
+  if (!note?.trim()) {
+    undocumentedDuplicateRecipes.push(
+      `${JSON.stringify(key)}, // ${normalizedRecipe(group[0])}`,
+    );
+    continue;
+  }
+  usedDuplicateDocs.add(key);
+}
+if (undocumentedDuplicateRecipes.length) {
+  throw new Error(
+    `Undocumented duplicate render recipes. Add each exact id group and a semantic distinction to DOCUMENTED_DUPLICATE_RECIPE_GROUPS:\n${undocumentedDuplicateRecipes.join("\n")}`,
+  );
+}
+for (const key of DOCUMENTED_DUPLICATE_RECIPE_GROUPS.keys()) {
+  if (!usedDuplicateDocs.has(key)) {
+    throw new Error(
+      `Stale duplicate-recipe documentation for ${JSON.stringify(key)}. Remove it or update the ids.`,
+    );
+  }
+}
+
+const componentGroups = new Map();
+for (const item of catalogItems) {
+  if (!componentGroups.has(item.component)) componentGroups.set(item.component, []);
+  componentGroups.get(item.component).push(item);
+}
+
+function canonicalRecipeEntry(group) {
+  return group.find((item) => !PLACEHOLDER_TRUTH.has(item.id)) ?? group[0];
+}
+
+function manifestEntry(item) {
+  const recipeGroup = recipeGroups.get(normalizedRecipe(item));
+  const recipeCanonical = canonicalRecipeEntry(recipeGroup);
+  const componentGroup = componentGroups.get(item.component);
+  const componentCanonical =
+    componentGroup.find((candidate) => !PLACEHOLDER_TRUTH.has(candidate.id)) ??
+    componentGroup[0];
+  const variant = explicitVariant(item);
+  const fixture = fixtureFor(item);
+  const isSelfFramed = selfFramed.has(item.component);
+  const status = PLACEHOLDER_TRUTH.has(item.id)
+    ? "planned"
+    : IMPLEMENTING_COMPONENTS.has(item.component)
+      ? "implementing"
+      : VERIFIED_HEROES.has(item.id)
+        ? "verified"
+        : "review";
+
+  let semantic;
+  if (PLACEHOLDER_TRUTH.has(item.id)) {
+    const of = recipeCanonical.id !== item.id ? recipeCanonical.id : componentCanonical.id;
+    semantic = {
+      kind: "placeholder",
+      ...(of !== item.id ? { of } : {}),
+      distinction: PLACEHOLDER_TRUTH.get(item.id),
+    };
+  } else if (recipeGroup.length > 1 && recipeCanonical.id !== item.id) {
+    semantic = {
+      kind: "alias",
+      of: recipeCanonical.id,
+      distinction: `${DOCUMENTED_DUPLICATE_RECIPE_GROUPS.get(duplicateGroupKey(recipeGroup))} Catalog label: ${item.title}.`,
+    };
+  } else if (variant && componentCanonical.id !== item.id) {
+    semantic = {
+      kind: "variant",
+      of: componentCanonical.id,
+      distinction:
+        item.semanticDistinction ??
+        `Configures ${item.component} with the explicit ${variant} variant.`,
+    };
+  } else {
+    semantic = {
+      kind: "canonical",
+      distinction:
+        item.semanticDistinction ??
+        (variant
+          ? `Primary catalog recipe for the ${variant} configuration of ${item.component}.`
+          : `Primary catalog recipe for ${item.component}.`),
+    };
+  }
+
+  return {
+    id: item.id,
+    title: item.title,
+    category: item.category,
+    variant,
+    component: item.component,
+    status,
+    statusNote:
+      status === "planned"
+        ? PLACEHOLDER_TRUTH.get(item.id)
+        : status === "implementing"
+          ? "A backing component exists, but semantic completeness or correctness remains active work."
+          : status === "verified"
+            ? VERIFIED_HEROES.get(item.id)
+            : "A backing component exists, but this catalog entry has not completed verification.",
+    semantic,
+    source: {
+      module: item.importFrom,
+      exportName: item.component,
+    },
+    dependencies: SOURCE_DEPENDENCIES[item.importFrom] ?? ["react"],
+    lazyLoader: {
+      module: item.importFrom,
+      exportName: item.component,
+      clientOnly: true,
+    },
+    fixture,
+    docs: {
+      slug: item.id,
+      state: "draft",
+    },
+    reference: {
+      kind: referenceKind(item.category),
+      label: item.title,
+      state: "catalog-label",
+    },
+    capabilities: capabilitiesFor(item, fixture, isSelfFramed),
+    ...(item.height ? { height: item.height } : {}),
+    ...(isSelfFramed ? { selfFramed: true } : {}),
+  };
+}
+
+const manifest = catalogItems.map(manifestEntry);
+
+const lazyComponents = new Map();
+for (const item of catalogItems) {
+  const leafModule = leafModules.get(item.component) ?? item.importFrom;
+  lazyComponents.set(item.component, leafModule);
+}
+
+const lazyBlocks = [...lazyComponents.entries()]
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(
+    ([component, modulePath]) =>
+      `const Lazy${component} = lazy(() => import(${JSON.stringify(modulePath)}).then((module) => ({ default: module.${component} })));`,
+  )
+  .join("\n");
+
+const renderers = catalogItems
+  .map((it) => {
+    const props = it.props ? ` ${it.props}` : "";
+    return `  ${JSON.stringify(it.id)}: () => <Lazy${it.component}${props} />,`;
   })
   .join("\n");
 
-const entries = unique
-  .map((it) => {
-    const props = it.props ? ` ${it.props}` : "";
-    const h = it.height
-      ? `\n    height: ${typeof it.height === "number" ? it.height : JSON.stringify(it.height)},`
-      : "";
-    const sf = selfFramed.has(it.component) ? `\n    selfFramed: true,` : "";
-    return `  {
-    id: ${JSON.stringify(it.id)},
-    title: ${JSON.stringify(it.title)},
-    category: ${JSON.stringify(it.category)},${h}${sf}
-    render: () => <${it.component}${props} />,
-  }`;
-  })
+const manifestEntries = manifest
+  .map((entry) => JSON.stringify(entry, null, 2))
   .join(",\n");
+
+const manifestFile = `/**
+ * GENERATED FILE — do not edit by hand.
+ * Source: scripts/generate-catalog.mjs · regenerate with \`pnpm catalog\`.
+ *
+ * Unlike the gallery renderer, this module is serializable and does not import
+ * every visual. Tooling can inspect implementation truth without loading the UI.
+ */
+
+import type { CatalogManifestEntry } from "./catalog-types";
+
+export const catalogManifest = [
+${manifestEntries}
+] as const satisfies readonly CatalogManifestEntry[];
+
+export type CatalogManifestId = (typeof catalogManifest)[number]["id"];
+
+export const catalogManifestById = Object.fromEntries(
+  catalogManifest.map((entry) => [entry.id, entry]),
+) as Record<CatalogManifestId, (typeof catalogManifest)[number]>;
+`;
 
 const file = `"use client";
 
@@ -761,19 +1209,32 @@ const file = `"use client";
  * Source: scripts/generate-catalog.mjs · regenerate with \`pnpm catalog\`.
  */
 
-import type { ReactNode } from "react";
-${importBlocks}
+import { lazy, type ReactNode } from "react";
+import { catalogManifest, type CatalogManifestId } from "./catalog-manifest";
+import type { CatalogManifestEntry } from "./catalog-types";
 import {
   kpiMetrics,
+  animatedScatterFrames,
+  animatedTimelineFrames,
+  barRaceFrames,
+  galleryImages,
+  gallerySafeHtml,
+  gallerySafeSvg,
+  scientificContourSpec,
+  mlFeatureResult,
   matrixRows,
   partToWhole,
   salesByRegion,
   scatterPoints,
   stackedSeries,
-  timeSeries,
   treemapData,
   funnelStages,
+  ganttTasks,
+  timelineEvents,
   waterfallData,
+  vegaBarSpec,
+  vegaLiteScatterSpec,
+  denebCompatibleSpec,
 } from "@/lib/sample-data";
 
 const tableColumns = [
@@ -810,31 +1271,60 @@ const matrixRowsWithImages = matrixRows.map((r, i) => ({
   img: demoThumb(i),
 }));
 
-export type CatalogEntry = {
-  id: string;
-  title: string;
-  category: string;
-  /** \`"auto"\` for control panels, which have a natural height. */
-  height?: number | "auto";
-  /**
-   * The component supplies its own card. The gallery labels it and renders it
-   * directly instead of nesting it in a second frame.
-   */
-  selfFramed?: boolean;
+${lazyBlocks}
+
+export type CatalogEntry = CatalogManifestEntry & {
   render: () => ReactNode;
 };
 
-export const catalog: CatalogEntry[] = [
-${entries}
-];
+const renderers = {
+${renderers}
+} satisfies Record<CatalogManifestId, () => ReactNode>;
+
+export const catalog: CatalogEntry[] = catalogManifest.map((entry) => ({
+  ...entry,
+  render: renderers[entry.id],
+}));
 
 export const categories = [...new Set(catalog.map((c) => c.category))];
 `;
 
-writeFileSync(
-  new URL("../src/registry/catalog.tsx", import.meta.url),
-  file,
-);
-console.log(`Wrote ${unique.length} catalog entries across ${new Set(unique.map((u) => u.category)).size} categories`);
-const usedSelfFramed = [...new Set(unique.filter((u) => selfFramed.has(u.component)).map((u) => u.component))].sort();
+const outputs = [
+  {
+    url: new URL("../src/registry/catalog-manifest.ts", import.meta.url),
+    label: "src/registry/catalog-manifest.ts",
+    content: manifestFile,
+  },
+  {
+    url: new URL("../src/registry/catalog.tsx", import.meta.url),
+    label: "src/registry/catalog.tsx",
+    content: file,
+  },
+];
+
+if (process.argv.includes("--check")) {
+  const stale = outputs.filter(({ url, content }) => {
+    try {
+      return readFileSync(url, "utf8") !== content;
+    } catch {
+      return true;
+    }
+  });
+  if (stale.length) {
+    console.error(
+      `Catalog output is stale or missing: ${stale.map((output) => output.label).join(", ")}. Run node scripts/generate-catalog.mjs.`,
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(
+      `Catalog check passed: ${catalogItems.length} entries, ${recipeGroups.size} normalized render recipes.`,
+    );
+  }
+} else {
+  for (const output of outputs) writeFileSync(output.url, output.content);
+  console.log(
+    `Wrote ${catalogItems.length} catalog entries across ${new Set(catalogItems.map((item) => item.category)).size} categories`,
+  );
+}
+const usedSelfFramed = [...new Set(catalogItems.filter((item) => selfFramed.has(item.component)).map((item) => item.component))].sort();
 console.log(`Self-framed components (rendered without a gallery frame): ${usedSelfFramed.join(", ")}`);

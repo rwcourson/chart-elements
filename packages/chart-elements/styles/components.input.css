@@ -1,0 +1,6 @@
+@reference "../../../src/app/globals.css";
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../../../src/components";
+@source "../../../src/lib";
+
+@custom-variant dark (&:where(.dark, .dark *));

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,10 +16,13 @@
 
 # next.js
 /.next/
+**/.next/
 /out/
 
 # production
 /build
+**/dist/
+*.tgz
 
 # misc
 .DS_Store
@@ -44,3 +48,6 @@ next-env.d.ts
 /.goalgraph/
 /.claude/
 /.cursor/
+
+# Supergoal run artifacts (local planning only)
+.supergoal/

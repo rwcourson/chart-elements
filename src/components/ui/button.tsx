@@ -2,6 +2,11 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+/**
+ * Control chrome matches Input / Select: same height (h-11) and
+ * `rounded-[var(--radius)]` (10px). Never use rounded-full on text buttons —
+ * that reads as a pill and fights adjacent fields.
+ */
 const buttonVariants = cva(
   // Inner outline: buttons sit inside ChartFrames that clip overflow, and an
   // outer ring+offset was getting squared off at the corners.
@@ -9,7 +14,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-accent text-accent-foreground hover:bg-[var(--accent-hover)]",
+        default:
+          "bg-accent text-accent-foreground hover:bg-[var(--accent-hover)]",
         secondary:
           "bg-[var(--accent-soft)] text-foreground hover:bg-[var(--sidebar-active)]",
         outline:
@@ -20,8 +26,9 @@ const buttonVariants = cva(
         link: "text-accent underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-11 px-3",
-        sm: "h-[38px] px-3 text-[13px]",
+        // Same 44px rail as Input so side-by-side forms share one silhouette.
+        default: "h-11 px-4",
+        sm: "h-11 px-3 text-[13px]",
         lg: "h-11 px-5",
         icon: "h-11 w-11",
       },
@@ -41,9 +48,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => (
     <button
       ref={ref}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   ),
 );
 Button.displayName = "Button";
+
+export { buttonVariants };

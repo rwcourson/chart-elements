@@ -1,23 +1,21 @@
 # Integrating Chart Elements
 
-This guide covers adding Chart Elements to a Next.js + Tailwind app, wiring theme tokens, and using the components. The live gallery is the fastest way to browse every visual before you copy or link the package.
+This guide covers adding Chart Elements to a React app, wiring theme tokens, and using the components. The live gallery is the fastest way to browse every visual before you copy or link the package.
 
 ## Prerequisites
 
-- Node.js ≥ 20.9
-- Next.js 16 (App Router)
-- React 19
-- Tailwind CSS 4
-- TypeScript with the `@/*` path alias pointing at your `src/` folder
+- Node.js ≥ 18 to consume the library (≥ 20.19 to build this repository)
+- React 18.2 or 19
+- A modern ESM-capable bundler such as Next.js or Vite
+- TypeScript is recommended
 
-Peer packages you need installed alongside this suite:
+The published package declares React and React DOM as peers:
 
 ```bash
-pnpm add recharts d3 lucide-react next-themes class-variance-authority clsx tailwind-merge date-fns
-pnpm add -D @types/d3
+pnpm add react react-dom
 ```
 
-## Option A — Copy source (recommended while private)
+## Option A — Copy source
 
 Best when you want full ownership and no monorepo coupling.
 
@@ -31,7 +29,6 @@ Best when you want full ownership and no monorepo coupling.
    src/components/ui/          # at least button, card, input, select, calendar, date-field
    src/lib/utils.ts
    src/lib/chart-colors.ts
-   src/lib/format.ts           # if present / imported by components you use
    src/components/providers/   # ThemeProvider
    ```
 
@@ -49,55 +46,56 @@ Best when you want full ownership and no monorepo coupling.
 
 4. Wrap the app in `ThemeProvider` (see [Theme](#theme)).
 
-## Option B — Workspace / git dependency
+## Option B — Compiled package or workspace
 
-Point your app at this package and let Next transpile the TypeScript source.
+Point your app at the compiled package. It ships ESM, declarations, source maps,
+and precompiled styles, so consumers do not transpile repository source.
 
 **pnpm workspace** — add the package to your monorepo `packages/` (or use `pnpm-workspace.yaml` `link:`), then:
 
 ```json
 {
   "dependencies": {
-    "chart-elements": "workspace:*"
+    "@rwcourson/chart-elements": "workspace:*"
   }
 }
 ```
 
-**Git dependency** (after the repo is public):
+**Local release-candidate tarball:**
 
 ```bash
-pnpm add github:rwcourson/chart-elements
-```
-
-In `next.config.ts`:
-
-```ts
-const nextConfig = {
-  transpilePackages: ["chart-elements"],
-};
-export default nextConfig;
+pnpm build:packages
+pnpm --filter @rwcourson/chart-elements pack
+# In the consumer project, add the generated .tgz file.
 ```
 
 Import via the package exports map:
 
 ```ts
-import { BarColumnChart, ChartFrame } from "chart-elements/charts";
-import { ModernCard, RadialGauge } from "chart-elements/cards";
-import { SearchableSlicer } from "chart-elements/slicers";
-import { DataTable } from "chart-elements/tables";
-import { ThemeProvider } from "chart-elements/theme";
-import { CHART_COLORS, colorAt } from "chart-elements"; // or chart-colors via your copy
+import { BarColumnChart, ChartFrame } from "@rwcourson/chart-elements/charts";
+import { ModernCard, RadialGauge } from "@rwcourson/chart-elements/cards";
+import { SearchableSlicer } from "@rwcourson/chart-elements/slicers";
+import { DataTable } from "@rwcourson/chart-elements/tables";
+import { VegaLiteChart } from "@rwcourson/chart-elements/declarative";
+import { CHART_COLORS, colorAt } from "@rwcourson/chart-elements";
 ```
 
-Also import the stylesheet once (App Router layout):
+Import the component stylesheet once. Add the default token layer only if your
+application does not already define the documented variables:
 
 ```ts
-import "chart-elements/styles.css";
+import "@rwcourson/chart-elements/tokens.css"; // optional defaults
+import "@rwcourson/chart-elements/components.css"; // required package styles
 ```
 
-Or copy only the token blocks into your own `globals.css` if you already have a design system.
-
-> Publishing to npm is not set up yet — there is no emit step that rewrites `@/*`. Prefer Option A or a workspace that shares the same alias, or configure your bundler to resolve `@/*` inside the package.
+The component layer has no Tailwind preflight, document reset, `body` rule,
+global universal selector, or root token declarations. `styles.css` is a
+backward-compatible alias of `components.css`; its rules live in the named
+`chart-elements` cascade layer so ordinary unlayered application styles retain
+precedence. Import `palettes.css` separately only if you want the optional demo
+palettes. The package has not yet been
+published; until the first release, use the workspace or inspected tarball path
+above. Do not install the repository root as a git dependency.
 
 ## Theme
 
@@ -106,7 +104,7 @@ Or copy only the token blocks into your own `globals.css` if you already have a 
 ```tsx
 // app/layout.tsx
 import { ThemeProvider } from "@/components/providers/theme-provider";
-// or: import { ThemeProvider } from "chart-elements/theme";
+// Package consumers can use next-themes directly or their existing theme state.
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -122,6 +120,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```
 
 Drop in `ThemeToggle` from `@/components/ui/theme-toggle` (or the demo header) wherever you want a light/dark control.
+
+The compiled package does not ship a framework-specific theme provider. Its
+optional tokens respond to `.dark`, so consumers remain free to use
+`next-themes`, another provider, or a class toggle they already own.
 
 ### CSS tokens
 
@@ -153,7 +155,7 @@ Charts resolve colors through `var(--chart-N)` (`src/lib/chart-colors.ts`), so c
 
 The gallery/home header includes a **Chart palette** control (`PalettePicker`) that sets `data-palette` on `<html>` and persists to `localStorage` (`ce-palette`). Overrides live in `src/app/palettes.css`.
 
-Built-in ids: `berry` (default), `bg-time`, `ocean`, `sunset`, `forest`, `slate`, `vivid`.
+Built-in ids: `neutral` (default), `berry`, `ocean`, `sunset`, `forest`, `slate`, `vivid`.
 
 To reuse the picker in your shell:
 
@@ -219,7 +221,7 @@ For demos and Storybook-like pages:
 
 ```ts
 import { timeSeries, salesByRegion, ohlc } from "@/lib/sample-data";
-// or: import { timeSeries } from "chart-elements/sample-data";
+// or: import { timeSeries } from "@rwcourson/chart-elements/sample-data";
 ```
 
 ## Gallery catalog

@@ -11,23 +11,26 @@ import {
   Cell,
   Line,
   LineChart,
-  ResponsiveContainer,
+  ReferenceLine,
   Scatter,
   ScatterChart,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
-import { CHART_COLORS, colorAt } from "@/lib/chart-colors";
+  YAxis} from "recharts";
+import { ChartResponsiveContainer } from "./chart-responsive";
+import { CHART_COLORS, colorAt, SEMANTIC } from "@/lib/chart-colors";
+import {
+  ACTIVE_DOT,
+  PLOT_MARGIN as SHARED_PLOT_MARGIN,
+  SERIES_STROKE_WIDTH} from "@/lib/chart-marks";
 import { useChartAnimation, useSeriesHover } from "@/lib/chart-motion";
 import {
   distribution,
   matrixRows,
   scatterPoints,
-  salesByRegion,
-} from "@/lib/sample-data";
-import { cn } from "@/lib/utils";
-import { ChartEmpty } from "./chart-frame";
+  salesByRegion} from "@/lib/sample-data";
+import { cn, roundSvgNumber } from "@/lib/utils";
+import { ChartEmpty, ScreenReaderTable } from "./chart-frame";
 import { ChartTooltip } from "./chart-tooltip";
 
 function Shell({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -43,10 +46,8 @@ function Shell({ children, className }: { children: React.ReactNode; className?:
   );
 }
 
-// Shared recharts plot margins. The defaults leave the top gridline label and
-// the outermost x tick sitting on (or just past) the SVG frame, so every chart
-// in this file reserves the same gutter instead.
-const PLOT_MARGIN = { top: 12, right: 16, left: 4, bottom: 4 };
+// Shared pack margins with a slightly tighter bottom for dense statistical axes.
+const PLOT_MARGIN = { ...SHARED_PLOT_MARGIN, bottom: 4 };
 
 // Raw float domains (e.g. -2.9250000000000007) render as ~130px-wide tick
 // labels that spill past the chart frame, so every numeric axis is formatted.
@@ -84,8 +85,7 @@ function binHistogram(values: number[], bins = 12): HistogramBin[] {
       name: `${b.x0?.toFixed(1)}`,
       count: b.length,
       x0: b.x0 ?? 0,
-      x1: b.x1 ?? 0,
-    }));
+      x1: b.x1 ?? 0}));
   return hist;
 }
 
@@ -141,8 +141,7 @@ function summarizeGroup(name: string, raw: number[]): DistributionGroup {
     q1: d3.quantile(values, 0.25) ?? 0,
     median: d3.quantile(values, 0.5) ?? 0,
     q3: d3.quantile(values, 0.75) ?? 0,
-    max: values[values.length - 1] ?? 0,
-  };
+    max: values[values.length - 1] ?? 0};
 }
 
 // One set of channels with four deliberately different distributions — broad,
@@ -161,8 +160,7 @@ const defaultBox = defaultGroups.map(({ name, min, q1, median, q3, max }) => ({
   q1,
   median,
   q3,
-  max,
-}));
+  max}));
 
 // Dedicated sample for the raincloud — same units the box summarises, not a
 // remapped slice of the unit-normal `defaultValues` (that used to pin every
@@ -176,8 +174,7 @@ const defaultCorr = (() => {
     keys.map((b, j) => ({
       x: a,
       y: b,
-      value: i === j ? 1 : 0.45 + ((i * 3 + j * 7) % 11) / 20,
-    })),
+      value: i === j ? 1 : 0.45 + ((i * 3 + j * 7) % 11) / 20})),
   );
 })();
 
@@ -226,14 +223,66 @@ const defaultPr = [
 
 const defaultResiduals = scatterPoints.slice(0, 24).map((p, i) => ({
   x: p.x,
-  residual: (p.y - p.x * 0.8) + ((i % 5) - 2) * 2,
-}));
+  residual: (p.y - p.x * 0.8) + ((i % 5) - 2) * 2}));
 
 const defaultRegression = scatterPoints.slice(0, 20);
-const regressionLine = [
-  { x: 20, y: 20 * 0.8 + 8 },
-  { x: 100, y: 100 * 0.8 + 8 },
-];
+
+export type RegressionPoint = { x: number; y: number };
+
+export type LinearRegressionResult = {
+  slope: number;
+  intercept: number;
+  rSquared: number;
+};
+
+export function linearRegression(data: readonly RegressionPoint[]): LinearRegressionResult | null {
+  const points = data.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+  if (points.length < 2) return null;
+  const meanX = d3.mean(points, (point) => point.x) ?? 0;
+  const meanY = d3.mean(points, (point) => point.y) ?? 0;
+  const denominator = d3.sum(points, (point) => (point.x - meanX) ** 2);
+  if (denominator === 0) return null;
+  const slope =
+    d3.sum(points, (point) => (point.x - meanX) * (point.y - meanY)) /
+    denominator;
+  const intercept = meanY - slope * meanX;
+  const residual = d3.sum(
+    points,
+    (point) => (point.y - (slope * point.x + intercept)) ** 2,
+  );
+  const total = d3.sum(points, (point) => (point.y - meanY) ** 2);
+  return {
+    slope,
+    intercept,
+    rSquared: total === 0 ? 1 : Math.max(0, 1 - residual / total)};
+}
+
+/** Acklam's deterministic approximation of the standard-normal quantile. */
+export function standardNormalQuantile(probability: number): number {
+  const p = Math.min(1 - Number.EPSILON, Math.max(Number.EPSILON, probability));
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [0.00778469570904146, 0.32246712907004, 2.44513413714299, 3.75440866190742];
+  const low = 0.02425;
+  const high = 1 - low;
+  if (p < low) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p > high) {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  const q = p - 0.5;
+  const r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
 
 // Service-dependency graph laid out as a hub plus a ring of consumers and four
 // chords. A bare cycle gave every node the same degree, so there was nothing for
@@ -250,8 +299,7 @@ const defaultNetwork = {
       return {
         id,
         x: 50 + 50 * Math.cos(angle),
-        y: 50 + 50 * Math.sin(angle),
-      };
+        y: 50 + 50 * Math.sin(angle)};
     }),
   ],
   links: [
@@ -261,25 +309,21 @@ const defaultNetwork = {
     { source: "Auth", target: "Store" },
     { source: "CDN", target: "Cache" },
     { source: "Cache", target: "Store" },
-  ],
-};
+  ]};
 
 const defaultErrorBars = salesByRegion.map((r) => ({
   name: r.name,
   value: r.sales,
-  error: 28 + (r.sales % 20),
-}));
+  error: 28 + (r.sales % 20)}));
 
 const defaultPca = scatterPoints.slice(0, 30).map((p, i) => ({
   pc1: p.x - 50,
   pc2: p.y - 40,
-  cluster: ["C1", "C2", "C3"][i % 3]!,
-}));
+  cluster: ["C1", "C2", "C3"][i % 3]!}));
 
 const defaultRidgeline = ["Alpha", "Beta", "Gamma"].map((name, i) => ({
   name,
-  points: kdeLine(defaultValues.map((v) => v + i * 0.4), 24),
-}));
+  points: kdeLine(defaultValues.map((v) => v + i * 0.4), 24)}));
 
 // Frame shared by the hand-drawn categorical plots (box, violin, error bar).
 // 400x250 is 1.60 against the card surface's 1.587, so `xMidYMid meet` scales it
@@ -311,8 +355,7 @@ function valueScale(lo: number, hi: number) {
 function CatScaffold({
   y,
   ticks,
-  x,
-}: {
+  x}: {
   y: (value: number) => number;
   ticks: number[];
   x: d3.ScaleBand<string>;
@@ -426,7 +469,7 @@ export function Histogram({ data = defaultHist }: { data?: typeof defaultHist })
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={PLOT_MARGIN}>
           <defs>
             {/* Depth without color math: the fill eases to 82% opacity toward
@@ -456,7 +499,7 @@ export function Histogram({ data = defaultHist }: { data?: typeof defaultHist })
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -466,7 +509,7 @@ export function DensityPlot({ data = defaultKde }: { data?: typeof defaultKde })
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis
@@ -485,13 +528,13 @@ export function DensityPlot({ data = defaultKde }: { data?: typeof defaultKde })
             stroke={CHART_COLORS[1]}
             fill={CHART_COLORS[1]}
             fillOpacity={0.25}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -515,7 +558,7 @@ export function KernelDensityPlot({ values = defaultValues }: { values?: number[
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis
@@ -540,14 +583,14 @@ export function KernelDensityPlot({ values = defaultValues }: { values?: number[
             type="monotone"
             dataKey="density"
             stroke={CHART_COLORS[2]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -787,8 +830,7 @@ function HeatmapGrid({
   cells,
   xLabels,
   yLabels,
-  showValues = false,
-}: {
+  showValues = false}: {
   cells: { x: string; y: string; value: number }[];
   xLabels: string[];
   yLabels: string[];
@@ -982,13 +1024,10 @@ const defaultCluster: TreeDatum = {
           children: [
             { name: "Online" },
             { height: 1.2, children: [{ name: "Mobile" }, { name: "Kiosk" }] },
-          ],
-        },
-      ],
-    },
+          ]},
+      ]},
     { height: 4.2, children: [{ name: "Wholesale" }, { name: "Partner" }] },
-  ],
-};
+  ]};
 
 // Where the tree is cut into flat clusters. The dashed rule and the leaf colours
 // read off the same number, so the grouping the hierarchy implies is visible
@@ -1038,8 +1077,7 @@ function placeCluster(
       x: toX(height),
       y: (Math.min(...ys) + Math.max(...ys)) / 2,
       cluster: own,
-      children,
-    };
+      children};
   };
   return walk(root, -1);
 }
@@ -1051,8 +1089,7 @@ function dendrogramLinks(node: PlacedNode, key = "n") {
   out.push({
     key: `${key}-v`,
     cluster: node.cluster,
-    d: `M${node.x},${Math.min(...ys)}V${Math.max(...ys)}`,
-  });
+    d: `M${node.x},${Math.min(...ys)}V${Math.max(...ys)}`});
   node.children.forEach((child, i) => {
     out.push({ key: `${key}-h${i}`, cluster: child.cluster, d: `M${node.x},${child.y}H${child.x}` });
     out.push(...dendrogramLinks(child, `${key}-${i}`));
@@ -1159,7 +1196,7 @@ export function SurvivalCurve({ data = defaultSurvival }: { data?: typeof defaul
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="t" tickLine={false} axisLine={false} />
@@ -1169,14 +1206,14 @@ export function SurvivalCurve({ data = defaultSurvival }: { data?: typeof defaul
             type="stepAfter"
             dataKey="survival"
             stroke={CHART_COLORS[0]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1186,7 +1223,7 @@ export function ROCCurve({ data = defaultRoc }: { data?: typeof defaultRoc }) {
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="fpr" tickLine={false} axisLine={false} />
@@ -1196,14 +1233,14 @@ export function ROCCurve({ data = defaultRoc }: { data?: typeof defaultRoc }) {
             type="monotone"
             dataKey="tpr"
             stroke={CHART_COLORS[1]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1213,7 +1250,7 @@ export function PrecisionRecallCurve({ data = defaultPr }: { data?: typeof defau
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="recall" tickLine={false} axisLine={false} />
@@ -1223,30 +1260,25 @@ export function PrecisionRecallCurve({ data = defaultPr }: { data?: typeof defau
             type="monotone"
             dataKey="precision"
             stroke={CHART_COLORS[3]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
 
 export function QQPlot({ data = defaultValues }: { data?: number[] }) {
   const anim = useChartAnimation();
-  const sorted = [...data].sort(d3.ascending);
+  const sorted = data.filter(Number.isFinite).sort(d3.ascending);
   const n = sorted.length;
-  const normalSample = d3.range(100).map((j) => {
-    const u = (j + 0.5) / 100;
-    return d3.quantile(sorted, u) ?? 0;
-  });
   const points = sorted.map((v, i) => {
     const q = (i + 0.5) / (n || 1);
-    const theoretical = d3.quantile(normalSample, q) ?? 0;
-    return { theoretical, sample: v };
+    return { theoretical: standardNormalQuantile(q), sample: v };
   });
 
   if (n === 0) {
@@ -1259,7 +1291,7 @@ export function QQPlot({ data = defaultValues }: { data?: number[] }) {
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
           <CartesianGrid />
           <XAxis type="number" dataKey="theoretical" tickLine={false} axisLine={false} />
@@ -1267,7 +1299,7 @@ export function QQPlot({ data = defaultValues }: { data?: number[] }) {
           <Tooltip content={<ChartTooltip />} />
           <Scatter data={points} fill={CHART_COLORS[4]} {...anim} />
         </ScatterChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1277,15 +1309,16 @@ export function ResidualPlot({ data = defaultResiduals }: { data?: typeof defaul
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
           <CartesianGrid />
           <XAxis type="number" dataKey="x" tickLine={false} axisLine={false} />
           <YAxis type="number" dataKey="residual" tickLine={false} axisLine={false} width={36} />
+          <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
           <Tooltip content={<ChartTooltip />} />
           <Scatter data={data} fill={CHART_COLORS[5]} {...anim} />
         </ScatterChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1294,13 +1327,11 @@ export function RegressionPlot({ data = defaultRegression }: { data?: typeof def
   const width = 400;
   const height = 220;
   const pad = 32;
-  const xs = data.map((d) => d.x);
-  const ys = data.map((d) => d.y);
-  const x = d3.scaleLinear().domain(d3.extent(xs) as [number, number]).range([pad, width - pad]);
-  const y = d3.scaleLinear().domain(d3.extent(ys) as [number, number]).range([height - pad, pad]);
-  const [lineStart, lineEnd] = regressionLine;
+  const points = data.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
 
-  if (data.length === 0) {
+  if (points.length === 0) {
     return (
       <Shell>
         <ChartEmpty />
@@ -1308,11 +1339,61 @@ export function RegressionPlot({ data = defaultRegression }: { data?: typeof def
     );
   }
 
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const xExtent = d3.extent(xs) as [number, number];
+  const yExtent = d3.extent(ys) as [number, number];
+  const xDomain: [number, number] = xExtent[0] === xExtent[1]
+    ? [xExtent[0] - 1, xExtent[1] + 1]
+    : xExtent;
+  const yDomain: [number, number] = yExtent[0] === yExtent[1]
+    ? [yExtent[0] - 1, yExtent[1] + 1]
+    : yExtent;
+  const x = d3.scaleLinear().domain(xDomain).nice().range([pad, width - pad]);
+  const y = d3.scaleLinear().domain(yDomain).nice().range([height - pad, pad]);
+  const regression = linearRegression(points);
+  const lineStart = regression
+    ? { x: x.domain()[0], y: regression.slope * x.domain()[0] + regression.intercept }
+    : null;
+  const lineEnd = regression
+    ? { x: x.domain()[1], y: regression.slope * x.domain()[1] + regression.intercept }
+    : null;
+
   return (
     <Shell>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-        {data.map((d, i) => (
-          <circle key={i} cx={x(d.x)} cy={y(d.y)} r={4} fill={CHART_COLORS[0]} fillOpacity={0.7} />
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-full w-full"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={`Regression plot${regression ? `, R squared ${regression.rSquared.toFixed(2)}` : ""}`}
+      >
+        <title>Linear regression</title>
+        <desc>{regression ? `Slope ${regression.slope.toFixed(3)}, intercept ${regression.intercept.toFixed(3)}, R squared ${regression.rSquared.toFixed(3)}.` : "A regression line cannot be calculated for these points."}</desc>
+        {x.ticks(5).map((tick) => (
+          <g key={`x-${tick}`}>
+            <line x1={x(tick)} x2={x(tick)} y1={pad} y2={height - pad} stroke="var(--chart-grid)" />
+            <text x={x(tick)} y={height - 10} textAnchor="middle" fill="var(--muted-foreground)" fontSize="11">{formatAxisNumber(tick)}</text>
+          </g>
+        ))}
+        {y.ticks(4).map((tick) => (
+          <g key={`y-${tick}`}>
+            <line x1={pad} x2={width - pad} y1={y(tick)} y2={y(tick)} stroke="var(--chart-grid)" />
+            <text x={pad - 6} y={y(tick) + 4} textAnchor="end" fill="var(--muted-foreground)" fontSize="11">{formatAxisNumber(tick)}</text>
+          </g>
+        ))}
+        {points.map((point, index) => (
+          <circle
+            key={`${point.x}-${point.y}-${index}`}
+            cx={x(point.x)}
+            cy={y(point.y)}
+            r={4}
+            fill={CHART_COLORS[0]}
+            fillOpacity={0.75}
+            tabIndex={0}
+            role="img"
+            aria-label={`x ${formatAxisNumber(point.x)}, y ${formatAxisNumber(point.y)}`}
+          />
         ))}
         {lineStart && lineEnd ? (
           <line
@@ -1329,89 +1410,142 @@ export function RegressionPlot({ data = defaultRegression }: { data?: typeof def
   );
 }
 
-export function ContourPlot() {
-  const width = 400;
-  const height = 220;
-  const levels = 6;
-  // The outermost contour covers the whole sampling grid, so the field is
-  // sampled inset from the frame rather than edge to edge.
-  const inset = 6;
-  const gridW = width - inset * 2;
-  const gridH = height - inset * 2;
-  const contours = d3
-    .contours()
-    .size([gridW, gridH])
-    .thresholds(d3.range(0, 1, 1 / levels))
-      (
-      (() => {
-        const values: number[] = [];
-        for (let y = 0; y < gridH; y++) {
-          for (let x = 0; x < gridW; x++) {
-            const dx = x - gridW / 2;
-            const dy = y - gridH / 2;
-            values.push(Math.exp(-(dx * dx + dy * dy) / (gridW * gridH * 0.08)));
-          }
-        }
-        return values;
-      })(),
-    );
+export type ContourGrid = {
+  columns: number;
+  rows: number;
+  values: readonly number[];
+};
+
+export type ContourPlotProps = {
+  grid?: ContourGrid;
+  thresholds?: number | readonly number[];
+  ariaLabel?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+};
+
+const defaultContourGrid: ContourGrid = (() => {
+  const columns = 48;
+  const rows = 30;
+  const values = Array.from({ length: columns * rows }, (_, index) => {
+    const x = index % columns;
+    const y = Math.floor(index / columns);
+    const left = Math.exp(-(((x - 16) ** 2) / 90 + ((y - 15) ** 2) / 54));
+    const right = 0.74 * Math.exp(-(((x - 34) ** 2) / 66 + ((y - 10) ** 2) / 42));
+    return left + right;
+  });
+  return { columns, rows, values };
+})();
+
+export function ContourPlot({
+  grid = defaultContourGrid,
+  thresholds = 7,
+  ariaLabel = "Contour plot",
+  xAxisLabel = "X",
+  yAxisLabel = "Y"}: ContourPlotProps) {
+  const columns = Math.trunc(grid.columns);
+  const rows = Math.trunc(grid.rows);
+  const values = [...grid.values];
+  if (columns < 2 || rows < 2 || values.length !== columns * rows || values.some((value) => !Number.isFinite(value))) {
+    return <ChartEmpty label="Contour grid dimensions and finite values must agree" />;
+  }
+  const requestedThresholds = typeof thresholds === "number"
+    ? Math.max(1, Math.min(24, Math.trunc(thresholds)))
+    : [...thresholds].filter(Number.isFinite).sort(d3.ascending);
+  const contours = d3.contours().size([columns, rows]).thresholds(requestedThresholds)(values);
+  if (!contours.length) return <ChartEmpty label="No contour levels could be derived" />;
+  const width = 420;
+  const height = 250;
+  const pad = { left: 42, right: 14, top: 12, bottom: 34 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+  const scaleX = plotWidth / columns;
+  const scaleY = plotHeight / rows;
 
   return (
     <Shell>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-        <g transform={`translate(${inset},${inset})`}>
-          {contours.map((c, i) => (
-            <path key={i} d={d3.geoPath().projection(null)(c) ?? ""} fill={colorAt(i)} fillOpacity={0.2 + i * 0.1} stroke={colorAt(i)} strokeWidth={0.5} />
-          ))}
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
+        <title>{ariaLabel}</title><desc>{contours.length} ordered levels derived from a {columns} by {rows} caller-supplied grid.</desc>
+        <g transform={`translate(${pad.left},${pad.top}) scale(${scaleX},${scaleY})`}>
+          {contours.map((contour, index) => <path key={`${contour.value}-${index}`} d={d3.geoPath().projection(null)(contour) ?? ""} fill={colorAt(index)} fillOpacity={0.18 + (index / Math.max(contours.length - 1, 1)) * 0.52} stroke={colorAt(index)} strokeWidth={0.7 / Math.max(scaleX, scaleY)} />)}
         </g>
+        <line x1={pad.left} x2={width - pad.right} y1={height - pad.bottom} y2={height - pad.bottom} stroke="var(--chart-axis)" />
+        <line x1={pad.left} x2={pad.left} y1={pad.top} y2={height - pad.bottom} stroke="var(--chart-axis)" />
+        <text x={(pad.left + width - pad.right) / 2} y={height - 10} textAnchor="middle" fontSize={11} fill="var(--foreground)">{xAxisLabel}</text>
+        <text x={12} y={(pad.top + height - pad.bottom) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(pad.top + height - pad.bottom) / 2})`} fontSize={11} fill="var(--foreground)">{yAxisLabel}</text>
+        {contours.map((contour, index) => <g key={`legend-${contour.value}-${index}`} transform={`translate(${width - 80},${16 + index * 14})`}><rect width="9" height="9" fill={colorAt(index)} fillOpacity={0.55} /><text x="13" y="8" fontSize="9" fill="var(--muted-foreground)">{formatAxisNumber(contour.value)}</text></g>)}
       </svg>
+      <ScreenReaderTable><caption>{ariaLabel} levels</caption><thead><tr><th scope="col">Level</th><th scope="col">Polygons</th></tr></thead><tbody>{contours.map((contour, index) => <tr key={`${contour.value}-${index}`}><th scope="row">{formatAxisNumber(contour.value)}</th><td>{contour.coordinates.length}</td></tr>)}</tbody></ScreenReaderTable>
     </Shell>
   );
 }
 
-export function ConfidenceBandPlot() {
+export type ConfidenceBandDatum = {
+  category: string;
+  value: number;
+  lower: number;
+  upper: number;
+};
+
+export type ConfidenceBandPlotProps = {
+  data?: readonly ConfidenceBandDatum[];
+  ariaLabel?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  valueFormatter?: (value: number) => string;
+};
+
+const defaultConfidenceBand: ConfidenceBandDatum[] = [
+  { category: "Jan", value: 42, lower: 36, upper: 48 },
+  { category: "Feb", value: 48, lower: 42, upper: 54 },
+  { category: "Mar", value: 51, lower: 45, upper: 57 },
+  { category: "Apr", value: 46, lower: 40, upper: 52 },
+  { category: "May", value: 56, lower: 50, upper: 62 },
+  { category: "Jun", value: 61, lower: 55, upper: 67 },
+];
+
+export function ConfidenceBandPlot({
+  data = defaultConfidenceBand,
+  ariaLabel = "Confidence band plot",
+  xAxisLabel,
+  yAxisLabel,
+  valueFormatter = (value) => formatAxisNumber(value)}: ConfidenceBandPlotProps) {
   const anim = useChartAnimation();
-  const data = timeSeriesFromSample();
+  const valid = data.flatMap((datum) => Number.isFinite(datum.value) && Number.isFinite(datum.lower) && Number.isFinite(datum.upper) && datum.category.trim() && datum.lower <= datum.upper
+    ? [{ ...datum, range: [datum.lower, datum.upper] as [number, number] }]
+    : []);
+  if (!valid.length) return <ChartEmpty label="No valid confidence intervals" />;
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={PLOT_MARGIN}>
+      <ChartResponsiveContainer width="100%" height="100%">
+        <AreaChart data={valid} margin={{ ...PLOT_MARGIN, bottom: xAxisLabel ? 18 : PLOT_MARGIN.bottom }} accessibilityLayer>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="date" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={40} />
+          <XAxis dataKey="category" tickLine={false} axisLine={false} label={xAxisLabel ? { value: xAxisLabel, position: "insideBottom", offset: -12 } : undefined} />
+          <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={valueFormatter} label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: "insideLeft" } : undefined} />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="upper" stroke="none" fill={CHART_COLORS[1]} fillOpacity={0.12} {...anim} />
-          <Area type="monotone" dataKey="lower" stroke="none" fill="var(--background)" fillOpacity={1} {...anim} />
+          <Area type="monotone" dataKey="range" stroke={CHART_COLORS[1]} strokeOpacity={0.45} fill={CHART_COLORS[1]} fillOpacity={0.16} connectNulls={false} {...anim} />
           <Line
             type="monotone"
             dataKey="value"
             stroke={CHART_COLORS[1]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
+      <ScreenReaderTable><caption>{ariaLabel} data</caption><thead><tr><th scope="col">Category</th><th scope="col">Value</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody>{valid.map((datum) => <tr key={datum.category}><th scope="row">{datum.category}</th><td>{valueFormatter(datum.value)}</td><td>{valueFormatter(datum.lower)}</td><td>{valueFormatter(datum.upper)}</td></tr>)}</tbody></ScreenReaderTable>
     </Shell>
   );
 }
 
-function timeSeriesFromSample() {
-  return [
-    { date: "Jan", value: 42, lower: 36, upper: 48 },
-    { date: "Feb", value: 48, lower: 42, upper: 54 },
-    { date: "Mar", value: 51, lower: 45, upper: 57 },
-    { date: "Apr", value: 46, lower: 40, upper: 52 },
-    { date: "May", value: 56, lower: 50, upper: 62 },
-    { date: "Jun", value: 61, lower: 55, upper: 67 },
-  ];
-}
-
 export function NetworkPlot({ network = defaultNetwork }: { network?: typeof defaultNetwork }) {
-  const width = 400;
-  const height = 250;
+  const width = 420;
+  const height = 280;
+  const chartFont =
+    'var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif';
 
   if (network.nodes.length === 0) {
     return (
@@ -1430,19 +1564,37 @@ export function NetworkPlot({ network = defaultNetwork }: { network?: typeof def
   const radius = d3
     .scaleSqrt()
     .domain([d3.min(degrees) ?? 0, d3.max(degrees) ?? 1])
-    .range([9, 16]);
-  const maxR = 16;
-  // The 0–100 layout is stretched to the frame, leaving exactly enough room for
-  // the largest node plus its label. The old version drew into the raw viewBox,
-  // so the graph sat off-centre inside a huge empty margin.
-  const inset = { top: 6 + maxR, right: 14 + maxR, bottom: 22 + maxR, left: 14 + maxR };
-  const px = (x: number) => inset.left + (x / 100) * (width - inset.left - inset.right);
-  const py = (y: number) => inset.top + (y / 100) * (height - inset.top - inset.bottom);
+    .range([10, 15]);
+  const maxR = 15;
+  // Room for outward labels (name + a few px gap) around the graph hull.
+  const labelPad = 22;
+  const inset = {
+    top: maxR + labelPad,
+    right: maxR + labelPad + 8,
+    bottom: maxR + labelPad,
+    left: maxR + labelPad + 8};
+  const px = (x: number) =>
+    roundSvgNumber(inset.left + (x / 100) * (width - inset.left - inset.right));
+  const py = (y: number) =>
+    roundSvgNumber(inset.top + (y / 100) * (height - inset.top - inset.bottom));
   const nodeMap = new Map(network.nodes.map((n) => [n.id, n]));
+
+  // Layout centroid — labels push outward from here so they never sit inside
+  // the hull (the old fixed y = r+12 put top-node names inside the polygon).
+  const cx =
+    network.nodes.reduce((sum, n) => sum + n.x, 0) / network.nodes.length;
+  const cy =
+    network.nodes.reduce((sum, n) => sum + n.y, 0) / network.nodes.length;
 
   return (
     <Shell>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-full w-full"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ fontFamily: chartFont }}
+        data-chart-svg
+      >
         {network.links.map((l) => {
           const s = nodeMap.get(l.source);
           const t = nodeMap.get(l.target);
@@ -1455,23 +1607,58 @@ export function NetworkPlot({ network = defaultNetwork }: { network?: typeof def
               x2={px(t.x)}
               y2={py(t.y)}
               stroke="var(--chart-axis)"
-              strokeOpacity={0.45}
-              strokeWidth={1.3}
+              strokeOpacity={0.4}
+              strokeWidth={1.5}
             />
           );
         })}
         {network.nodes.map((n, i) => {
           const r = radius(degree.get(n.id) ?? 0);
+          const dx = n.x - cx;
+          const dy = n.y - cy;
+          // Hub / center nodes: park the label below the circle.
+          const isHub = Math.hypot(dx, dy) < 8;
+          const angle = isHub ? Math.PI / 2 : Math.atan2(dy, dx);
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const labelDist = r + 14;
+          const lx = isHub ? 0 : roundSvgNumber(cos * labelDist);
+          const ly = isHub
+            ? r + 14
+            : roundSvgNumber(sin * labelDist);
+          const textAnchor =
+            isHub || Math.abs(cos) < 0.35
+              ? "middle"
+              : cos > 0
+                ? "start"
+                : "end";
+          const dominantBaseline =
+            isHub || Math.abs(sin) < 0.35
+              ? "central"
+              : sin > 0
+                ? "hanging"
+                : "auto";
+
           return (
             <g key={n.id} transform={`translate(${px(n.x)},${py(n.y)})`}>
-              {/* A card-coloured ring keeps the node distinct from the edges
-                  passing under it, in both themes. */}
-              <circle r={r} fill={colorAt(i)} stroke="var(--card)" strokeWidth={1.5} />
-              {/* Labels sit outside the node: --foreground is the token for
-                  anything naming the data, and it cannot clear 4.5:1 on top of a
-                  saturated series fill. */}
-              <text y={r + 12} textAnchor="middle" fontSize={10} fill="var(--foreground)">
+              <circle
+                r={r}
+                fill={colorAt(i)}
+                stroke="var(--card)"
+                strokeWidth={1.5}
+              />
+              <text
+                x={lx}
+                y={ly}
+                textAnchor={textAnchor}
+                dominantBaseline={dominantBaseline}
+                fontSize={12}
+                fontWeight={500}
+                letterSpacing="-0.01em"
+                fill="var(--secondary-foreground)"
+              >
                 {n.id}
+                <title>{n.id}</title>
               </text>
             </g>
           );
@@ -1551,17 +1738,155 @@ export function PairPlot({ data = scatterPoints.slice(0, 16) }: { data?: typeof 
 }
 
 export function ConfusionMatrix({ cells = defaultConfusion }: { cells?: typeof defaultConfusion }) {
-  const labels = ["A", "B", "C"];
+  const labels = [
+    ...new Set(cells.flatMap((cell) => [cell.actual, cell.predicted])),
+  ];
   const heat = labels.flatMap((actual) =>
     labels.map((predicted) => ({
       x: predicted,
       y: actual,
-      value: cells.find((c) => c.actual === actual && c.predicted === predicted)?.count ?? 0,
-    })),
+      value: cells.find((c) => c.actual === actual && c.predicted === predicted)?.count ?? 0})),
   );
   return (
     <Shell>
       <HeatmapGrid cells={heat} xLabels={labels} yLabels={labels} />
+    </Shell>
+  );
+}
+
+export type RiskMatrixDatum = {
+  id: string;
+  label: string;
+  likelihood: number;
+  impact: number;
+};
+
+export type RiskMatrixProps = {
+  data?: RiskMatrixDatum[];
+  likelihoodLabel?: string;
+  impactLabel?: string;
+};
+
+const defaultRisks: RiskMatrixDatum[] = [
+  { id: "supply", label: "Supply interruption", likelihood: 4, impact: 5 },
+  { id: "quality", label: "Quality escape", likelihood: 3, impact: 4 },
+  { id: "schedule", label: "Schedule delay", likelihood: 4, impact: 3 },
+  { id: "minor", label: "Minor rework", likelihood: 2, impact: 2 },
+];
+
+/** Conventional likelihood-by-impact risk matrix, distinct from classification confusion matrices. */
+export function RiskMatrix({
+  data = defaultRisks,
+  likelihoodLabel = "Likelihood",
+  impactLabel = "Impact"}: RiskMatrixProps) {
+  const width = 400;
+  const height = 250;
+  const margin = { left: 54, right: 18, top: 12, bottom: 42 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const cellWidth = plotWidth / 5;
+  const cellHeight = plotHeight / 5;
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const valid = data.filter(
+    (risk) =>
+      risk.id &&
+      risk.label &&
+      Number.isFinite(risk.likelihood) &&
+      Number.isFinite(risk.impact) &&
+      risk.likelihood >= 1 &&
+      risk.likelihood <= 5 &&
+      risk.impact >= 1 &&
+      risk.impact <= 5,
+  );
+
+  if (!valid.length) {
+    return (
+      <Shell><ChartEmpty /></Shell>
+    );
+  }
+
+  const cellColor = (score: number) =>
+    score >= 16
+      ? SEMANTIC.negative
+      : score >= 9
+        ? SEMANTIC.warning
+        : SEMANTIC.positive;
+
+  return (
+    <Shell>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-full w-full"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-labelledby={`risk-title-${uid} risk-desc-${uid}`}
+      >
+        <title id={`risk-title-${uid}`}>Risk matrix</title>
+        <desc id={`risk-desc-${uid}`}>
+          {valid.length} risks plotted by likelihood from one to five and impact from one to five.
+        </desc>
+        <g transform={`translate(${margin.left},${margin.top})`}>
+          {Array.from({ length: 5 }, (_, impactIndex) =>
+            Array.from({ length: 5 }, (_, likelihoodIndex) => {
+              const likelihood = likelihoodIndex + 1;
+              const impact = 5 - impactIndex;
+              return (
+                <rect
+                  key={`${likelihood}-${impact}`}
+                  x={likelihoodIndex * cellWidth}
+                  y={impactIndex * cellHeight}
+                  width={cellWidth}
+                  height={cellHeight}
+                  fill={cellColor(likelihood * impact)}
+                  fillOpacity={0.15 + Math.min(0.28, likelihood * impact * 0.012)}
+                  stroke="var(--card)"
+                  strokeWidth={2}
+                />
+              );
+            }),
+          )}
+          {Array.from({ length: 5 }, (_, index) => (
+            <React.Fragment key={index}>
+              <text x={(index + 0.5) * cellWidth} y={plotHeight + 18} textAnchor="middle" fill="var(--muted-foreground)" fontSize={11}>
+                {index + 1}
+              </text>
+              <text x={-12} y={(4 - index + 0.5) * cellHeight} textAnchor="end" dominantBaseline="central" fill="var(--muted-foreground)" fontSize={11}>
+                {index + 1}
+              </text>
+            </React.Fragment>
+          ))}
+          {valid.map((risk, index) => {
+            const duplicatesBefore = valid.slice(0, index).filter(
+              (candidate) => candidate.likelihood === risk.likelihood && candidate.impact === risk.impact,
+            ).length;
+            const jitter = (duplicatesBefore % 3 - 1) * 8;
+            const x = (risk.likelihood - 0.5) * cellWidth + jitter;
+            const y = (5 - risk.impact + 0.5) * cellHeight - jitter * 0.4;
+            return (
+              <g
+                key={risk.id}
+                transform={`translate(${x},${y})`}
+                tabIndex={0}
+                role="graphics-symbol"
+                aria-label={`${risk.label}: likelihood ${risk.likelihood}, impact ${risk.impact}, score ${risk.likelihood * risk.impact}`}
+                className="outline-none"
+              >
+                <circle r={8} fill={cellColor(risk.likelihood * risk.impact)} stroke="var(--card)" strokeWidth={2} />
+                <text y={-12} textAnchor="middle" fill="var(--foreground)" fontSize={10} fontWeight={600}>
+                  {risk.label.length > 14 ? `${risk.label.slice(0, 13)}…` : risk.label}
+                </text>
+                <title>{risk.label}</title>
+              </g>
+            );
+          })}
+          <text x={plotWidth / 2} y={plotHeight + 36} textAnchor="middle" fill="var(--foreground)" fontSize={12} fontWeight={600}>
+            {likelihoodLabel}
+          </text>
+          <text transform={`translate(${-42},${plotHeight / 2}) rotate(-90)`} textAnchor="middle" fill="var(--foreground)" fontSize={12} fontWeight={600}>
+            {impactLabel}
+          </text>
+        </g>
+      </svg>
     </Shell>
   );
 }
@@ -1573,7 +1898,7 @@ export function FeatureImportanceChart({ data = defaultFeatures }: { data?: type
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={PLOT_MARGIN}>
           <defs>
             {/* Depth without color math: the fill eases to 82% opacity toward
@@ -1603,7 +1928,7 @@ export function FeatureImportanceChart({ data = defaultFeatures }: { data?: type
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1614,7 +1939,7 @@ export function PCAPlot({ data = defaultPca }: { data?: typeof defaultPca }) {
   const hover = useSeriesHover();
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
           <CartesianGrid />
           <XAxis type="number" dataKey="pc1" tickLine={false} axisLine={false} />
@@ -1634,7 +1959,7 @@ export function PCAPlot({ data = defaultPca }: { data?: typeof defaultPca }) {
             })}
           </Scatter>
         </ScatterChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1648,28 +1973,10 @@ export function BeeswarmPlot({ values = defaultValues.slice(0, 40) }: { values?:
   const height = 220;
   const pad = 40;
   const w = width - pad * 2;
-  const y = d3.scaleLinear().domain(d3.extent(values) as [number, number]).range([height - 24, 24]);
-  const sorted = [...values].sort(d3.ascending);
   const radius = 5;
-  const placed: { x: number; cy: number }[] = [];
+  const finiteValues = values.filter(Number.isFinite);
 
-  sorted.forEach((v) => {
-    const cy = y(v);
-    let cx = pad + w / 2;
-    for (let offset = 0; offset < w / 2; offset += radius) {
-      const left = cx - offset;
-      const right = cx + offset;
-      const collide = placed.some((p) => Math.hypot(p.x - left, p.cy - cy) < radius * 2.2 || Math.hypot(p.x - right, p.cy - cy) < radius * 2.2);
-      if (!collide) {
-        cx = offset === 0 ? cx : right;
-        break;
-      }
-      if (!collide) cx = left;
-    }
-    placed.push({ x: cx, cy });
-  });
-
-  if (values.length === 0) {
+  if (finiteValues.length === 0) {
     return (
       <Shell>
         <ChartEmpty />
@@ -1677,11 +1984,41 @@ export function BeeswarmPlot({ values = defaultValues.slice(0, 40) }: { values?:
     );
   }
 
+  const extent = d3.extent(finiteValues) as [number, number];
+  const domain: [number, number] = extent[0] === extent[1]
+    ? [extent[0] - 1, extent[1] + 1]
+    : extent;
+  const y = d3.scaleLinear().domain(domain).nice().range([height - 24, 24]);
+  const sorted = [...finiteValues].sort(d3.ascending);
+  const placed: { x: number; cy: number; value: number }[] = [];
+  const center = pad + w / 2;
+
+  sorted.forEach((value) => {
+    const cy = y(value);
+    let selected = center;
+    const step = radius * 1.1;
+    for (let index = 0; index < Math.ceil(w / step); index += 1) {
+      const offset = Math.ceil(index / 2) * step * (index % 2 === 0 ? -1 : 1);
+      const candidate = center + offset;
+      if (candidate < pad + radius || candidate > width - pad - radius) continue;
+      const collides = placed.some(
+        (point) => Math.hypot(point.x - candidate, point.cy - cy) < radius * 2.2,
+      );
+      if (!collides) {
+        selected = candidate;
+        break;
+      }
+    }
+    placed.push({ x: selected, cy, value });
+  });
+
   return (
     <Shell>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Beeswarm plot of ${placed.length} values`}>
+        <title>Beeswarm distribution</title>
+        <line x1={center} x2={center} y1="20" y2={height - 20} stroke="var(--chart-grid)" />
         {placed.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.cy} r={radius} fill={colorAt(i % 6)} fillOpacity={0.75} />
+          <circle key={`${p.value}-${i}`} cx={p.x} cy={p.cy} r={radius} fill={CHART_COLORS[0]} fillOpacity={0.75} tabIndex={0} role="img" aria-label={formatAxisNumber(p.value)} />
         ))}
       </svg>
     </Shell>
@@ -1720,11 +2057,10 @@ export function JitterPlot({ data = scatterPoints.slice(0, 30) }: { data?: typeo
   const jittered = data.map((d, i) => ({
     ...d,
     x: d.x + ((i % 5) - 2) * 2,
-    y: d.y + ((i % 4) - 1.5) * 2,
-  }));
+    y: d.y + ((i % 4) - 1.5) * 2}));
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={PLOT_MARGIN}>
           <CartesianGrid />
           <XAxis type="number" dataKey="x" tickLine={false} axisLine={false} />
@@ -1732,7 +2068,7 @@ export function JitterPlot({ data = scatterPoints.slice(0, 30) }: { data?: typeo
           <Tooltip content={<ChartTooltip />} />
           <Scatter data={jittered} fill={CHART_COLORS[2]} fillOpacity={0.75} {...anim} />
         </ScatterChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }
@@ -1910,7 +2246,7 @@ export function FrequencyPolygon({ data = defaultHist }: { data?: typeof default
 
   return (
     <Shell>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={PLOT_MARGIN}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} />
@@ -1920,14 +2256,14 @@ export function FrequencyPolygon({ data = defaultHist }: { data?: typeof default
             type="linear"
             dataKey="count"
             stroke={CHART_COLORS[4]}
-            strokeWidth={2.25}
+            strokeWidth={SERIES_STROKE_WIDTH}
             strokeLinecap="round"
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={ACTIVE_DOT}
             {...anim}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </Shell>
   );
 }

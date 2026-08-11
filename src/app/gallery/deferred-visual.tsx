@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
  *     in the same frame makes some of them measure 0x0 and render blank.
  *     Mounting on intersection guarantees the parent already has real layout.
  *
- * Once mounted the child stays mounted, so scrolling back never re-flashes.
+ * The child unmounts again after leaving the overscan window. This keeps the
+ * all-visuals page from accumulating hundreds of charts, timers and observers
+ * after a long scroll; the fixed skeleton preserves layout and scroll position.
  */
 export function DeferredVisual({
   children,
@@ -37,13 +39,11 @@ export function DeferredVisual({
   const [visible, setVisible] = React.useState(false);
 
   React.useEffect(() => {
-    if (visible) return;
     const node = ref.current;
     if (!node) return;
 
-    // Without IntersectionObserver (jsdom, very old browsers) render everything
-    // rather than nothing. Deferred to a microtask because setting state
-    // synchronously in an effect body triggers a cascading render.
+    // Without IntersectionObserver (jsdom, very old browsers) render rather
+    // than leaving a permanently empty slot.
     if (typeof IntersectionObserver === "undefined") {
       queueMicrotask(() => setVisible(true));
       return;
@@ -51,24 +51,25 @@ export function DeferredVisual({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
+        setVisible(entries.some((entry) => entry.isIntersecting));
       },
       { rootMargin },
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [visible, rootMargin]);
+  }, [rootMargin]);
+
+  const placeholder = fallback ?? <VisualSkeleton height={reserveHeight} />;
 
   return (
     <div ref={ref} className={reserveHeight ? "w-full" : "h-full w-full"}>
       {visible ? (
-        <div className="ce-visual-in h-full w-full">{children}</div>
+        <React.Suspense fallback={placeholder}>
+          <div className="ce-visual-in h-full w-full">{children}</div>
+        </React.Suspense>
       ) : (
-        (fallback ?? <VisualSkeleton height={reserveHeight} />)
+        placeholder
       )}
     </div>
   );
@@ -78,7 +79,7 @@ function VisualSkeleton({ height }: { height?: number }) {
   return (
     <div
       className={cn(
-        "w-full animate-pulse rounded-[var(--radius)] bg-[var(--muted)]",
+        "w-full rounded-[var(--radius)] bg-[var(--muted)] motion-safe:animate-pulse",
         !height && "h-full",
       )}
       style={height ? { height } : undefined}

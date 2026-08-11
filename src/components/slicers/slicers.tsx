@@ -42,6 +42,30 @@ export type DateRange = { start: string; end: string };
 export type NumericRange = { min: number | null; max: number | null };
 export type NumericFilter = { operator: "eq" | "gt" | "lt" | "between"; value: number | NumericRange };
 
+const DAY_MS = 86_400_000;
+
+function parseDateOnly(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const date = new Date(timestamp);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return timestamp;
+}
+
+function formatDateOnly(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
 type BaseProps = {
   className?: string;
   label?: string;
@@ -134,34 +158,72 @@ function SlicerShell({
   );
 }
 
+/**
+ * Row chrome for list/hierarchy options. Radius matches the list inset
+ * (`rounded-[var(--radius)]` shell + `p-1`), so corners don't fight. Focus is
+ * a single soft inset wash — no ring-offset (that doubled the panel radius
+ * and clashed with the list border) and no browser-blue checkbox outline.
+ */
 const optionItemClass = (selected: boolean, disabled?: boolean) =>
   cn(
-    "flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition-colors",
+    "flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-2 text-left text-sm transition-colors",
+    "outline-none focus-within:bg-[var(--sidebar-hover)]",
     selected
-      ? "bg-accent/10 text-accent"
-      : "text-foreground hover:bg-muted",
-    disabled && "pointer-events-none opacity-50",
+      ? "bg-[var(--accent-soft)] font-medium text-accent"
+      : "text-foreground hover:bg-[var(--sidebar-hover)]",
+    disabled && "cursor-not-allowed opacity-50",
   );
+
+/**
+ * Custom control face (native input is opacity-0 on top for a11y). Avoids:
+ * - browser-blue focus outlines (`accent-color` does not theme those)
+ * - large radii that fight the list shell
+ * - system checkbox glyphs that ignore our palette
+ */
+const controlFaceClass = cn(
+  "pointer-events-none absolute inset-0 grid place-items-center border border-[var(--border-strong)] bg-card transition-[border-color,box-shadow,background-color,color]",
+  "peer-checked:border-accent peer-checked:bg-accent peer-checked:text-accent-foreground",
+  "peer-focus-visible:border-accent peer-focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_30%,transparent)]",
+  "peer-disabled:opacity-50",
+);
 
 function OptionCheckbox({
   checked,
   onChange,
   disabled,
+  name,
 }: {
   checked: boolean;
   onChange: () => void;
   disabled?: boolean;
+  name?: string;
 }) {
   return (
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      aria-hidden="true"
-      tabIndex={-1}
-      className="size-3.5 shrink-0 rounded border-border accent-accent"
-    />
+    <span className="relative inline-flex size-4 shrink-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        name={name}
+        className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+      />
+      <span className={cn(controlFaceClass, "rounded-[3px]")} aria-hidden="true">
+        <svg
+          viewBox="0 0 16 16"
+          className={cn("size-2.5", checked ? "opacity-100" : "opacity-0")}
+          fill="none"
+        >
+          <path
+            d="M3.5 8.5 6.5 11.5 12.5 4.5"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    </span>
   );
 }
 
@@ -169,21 +231,32 @@ function OptionRadio({
   checked,
   onChange,
   disabled,
+  name,
 }: {
   checked: boolean;
   onChange: () => void;
   disabled?: boolean;
+  name?: string;
 }) {
   return (
-    <input
-      type="radio"
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      aria-hidden="true"
-      tabIndex={-1}
-      className="size-3.5 shrink-0 accent-accent"
-    />
+    <span className="relative inline-flex size-4 shrink-0">
+      <input
+        type="radio"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        name={name}
+        className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+      />
+      <span className={cn(controlFaceClass, "rounded-full")} aria-hidden="true">
+        <span
+          className={cn(
+            "size-1.5 rounded-full bg-current transition-opacity",
+            checked ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </span>
+    </span>
   );
 }
 
@@ -192,23 +265,25 @@ function OptionRow({
   selected,
   multiple,
   onSelect,
+  name,
 }: {
   option: SlicerOption;
   selected: boolean;
   multiple?: boolean;
   onSelect: () => void;
+  name?: string;
 }) {
   const Control = multiple ? OptionCheckbox : OptionRadio;
   return (
-    <button
-      type="button"
-      role={multiple ? "checkbox" : "radio"}
-      aria-checked={selected}
-      disabled={option.disabled}
-      onClick={onSelect}
+    <label
       className={optionItemClass(selected, option.disabled)}
     >
-      <Control checked={selected} onChange={onSelect} disabled={option.disabled} />
+      <Control
+        checked={selected}
+        onChange={onSelect}
+        disabled={option.disabled}
+        name={name}
+      />
       {option.icon ? <span className="shrink-0">{option.icon}</span> : null}
       {option.image ? (
         // Plain <img>: consumers pass arbitrary URLs, and next/image would
@@ -222,7 +297,7 @@ function OptionRow({
           {option.count}
         </Badge>
       ) : null}
-    </button>
+    </label>
   );
 }
 
@@ -241,6 +316,17 @@ function OptionsList({
   className?: string;
   maxHeight?: number;
 }) {
+  const groupName = React.useId();
+  const duplicateValues = React.useMemo(() => {
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+    options.forEach((option) => {
+      if (seen.has(option.value)) duplicates.add(option.value);
+      seen.add(option.value);
+    });
+    return [...duplicates];
+  }, [options]);
+
   const toggle = (v: string) => {
     if (multiple) {
       onChange(
@@ -257,13 +343,24 @@ function OptionsList({
       style={{ maxHeight }}
     >
       <div className="p-1" role={multiple ? "group" : "radiogroup"}>
-        {options.map((opt) => (
+        {duplicateValues.length ? (
+          <p role="alert" className="px-2 py-1 text-xs text-[var(--chart-negative)]">
+            Duplicate option values: {duplicateValues.join(", ")}
+          </p>
+        ) : null}
+        {!options.length ? (
+          <p role="status" className="px-2 py-3 text-center text-xs text-muted-foreground">
+            No options
+          </p>
+        ) : null}
+        {options.map((opt, index) => (
           <OptionRow
-            key={opt.value}
+            key={`${opt.value}-${index}`}
             option={opt}
             selected={value.includes(opt.value)}
             multiple={multiple}
             onSelect={() => toggle(opt.value)}
+            name={multiple ? undefined : groupName}
           />
         ))}
       </div>
@@ -336,6 +433,7 @@ function ButtonOption({
       variant={selected ? "default" : "outline"}
       disabled={option.disabled}
       onClick={onClick}
+      aria-pressed={selected}
       className="gap-1.5"
     >
       {option.icon}
@@ -376,6 +474,7 @@ function HierarchyNode({
   depth,
   value,
   multiple,
+  name,
   onChange,
   expanded,
   onToggleExpand,
@@ -385,6 +484,7 @@ function HierarchyNode({
   depth: number;
   value: string[];
   multiple?: boolean;
+  name?: string;
   onChange: (v: string[]) => void;
   expanded: Set<string>;
   onToggleExpand: (p: string) => void;
@@ -415,33 +515,28 @@ function HierarchyNode({
             onClick={() => onToggleExpand(path)}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.label}`}
             aria-expanded={isExpanded}
-            className="mr-0.5 rounded p-0.5 text-muted-foreground hover:bg-muted"
+            className="mr-0.5 grid size-11 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted"
           >
             <ChevronRight
               className={cn(
-                "size-3.5 transition-transform duration-200",
+                "size-4 transition-transform duration-200",
                 isExpanded && "rotate-90",
               )}
             />
           </button>
         ) : (
-          <span className="w-5" />
+          <span className="w-11 shrink-0" />
         )}
-        <button
-          type="button"
-          role={multiple ? "checkbox" : "radio"}
-          aria-checked={selected}
-          disabled={node.disabled}
-          onClick={select}
+        <label
           className={cn(optionItemClass(selected, node.disabled), "flex-1")}
         >
           {multiple ? (
-            <OptionCheckbox checked={selected} onChange={select} disabled={node.disabled} />
+            <OptionCheckbox checked={selected} onChange={select} disabled={node.disabled} name={name} />
           ) : (
-            <OptionRadio checked={selected} onChange={select} disabled={node.disabled} />
+            <OptionRadio checked={selected} onChange={select} disabled={node.disabled} name={name} />
           )}
           <span className="truncate">{node.label}</span>
-        </button>
+        </label>
       </div>
       {hasChildren ? (
         /* Same 0fr→1fr fold as the decomposition tree (.ce-tree-children in
@@ -456,6 +551,7 @@ function HierarchyNode({
                 depth={depth + 1}
                 value={value}
                 multiple={multiple}
+                name={name}
                 onChange={onChange}
                 expanded={expanded}
                 onToggleExpand={onToggleExpand}
@@ -484,6 +580,7 @@ function HierarchyTree({
   maxHeight?: number;
 }) {
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const groupName = React.useId();
 
   const toggleExpand = (path: string) => {
     setExpanded((prev) => {
@@ -508,6 +605,7 @@ function HierarchyTree({
           depth={0}
           value={value}
           multiple={multiple}
+          name={multiple ? undefined : groupName}
           onChange={onChange}
           expanded={expanded}
           onToggleExpand={toggleExpand}
@@ -669,6 +767,7 @@ export function TileSlicer({
               type="button"
               disabled={disabled || opt.disabled}
               onClick={() => toggle(opt.value)}
+              aria-pressed={isSelected}
               className={cn(
                 "flex flex-col items-center gap-1.5 rounded-[var(--radius)] border p-3 text-center text-xs transition-colors",
                 isSelected
@@ -1577,18 +1676,27 @@ export function PastedValueFilter({
     onChange,
   });
   const [draft, setDraft] = React.useState("");
+  const [status, setStatus] = React.useState("");
   const controlId = React.useId();
+  const statusId = React.useId();
 
-  const parse = (raw: string) =>
-    raw
-      .split(separator)
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const parse = (raw: string) => [
+    ...new Set(
+      raw
+        .split(separator)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
 
   const apply = () => {
     const parsed = parse(draft);
-    if (parsed.length) setValues(parsed);
-    setDraft("");
+    if (!parsed.length) {
+      setStatus("Enter at least one value before applying.");
+      return;
+    }
+    setValues(parsed);
+    setStatus(`${parsed.length} unique ${parsed.length === 1 ? "value" : "values"} applied.`);
   };
 
   return (
@@ -1596,16 +1704,29 @@ export function PastedValueFilter({
       <textarea
         id={controlId}
         aria-label={label ? undefined : "Paste values"}
+        aria-describedby={statusId}
         disabled={disabled}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={apply}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) apply();
         }}
         placeholder="Paste comma or newline separated values…"
         className="min-h-[72px] w-full rounded-[var(--radius)] border border-border bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       />
+      <div className="flex items-center justify-between gap-3">
+        <p id={statusId} role="status" className="text-xs text-muted-foreground">
+          {status || "Paste comma, semicolon, or newline-separated values, then apply."}
+        </p>
+        <Button
+          type="button"
+          size="sm"
+          disabled={disabled || !draft.trim()}
+          onClick={apply}
+        >
+          Apply
+        </Button>
+      </div>
       {values?.length ? (
         <div className="flex flex-wrap gap-1">
           {values.map((v) => (
@@ -1613,10 +1734,11 @@ export function PastedValueFilter({
               {v}
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => setValues(values.filter((x) => x !== v))}
                 aria-label={`Remove ${v}`}
                 title={`Remove ${v}`}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="size-3" />
               </button>
@@ -1680,10 +1802,11 @@ export function InputCollection({
               {v}
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => setItems(items.filter((x) => x !== v))}
                 aria-label={`Remove ${v}`}
                 title={`Remove ${v}`}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="size-3" />
               </button>
@@ -1784,25 +1907,33 @@ export function TimelineSlicer({
     onChange,
   });
 
-  const toMs = (d: string) => new Date(d).getTime();
-  const minMs = toMs(defaultMin);
-  const maxMs = toMs(defaultMax);
-  const startMs = toMs(range?.start || defaultMin);
-  const endMs = toMs(range?.end || defaultMax);
+  const parsedMin = parseDateOnly(defaultMin);
+  const parsedMax = parseDateOnly(defaultMax);
+  const minMs = parsedMin ?? Date.UTC(2020, 0, 1);
+  const maxMs = parsedMax != null && parsedMax > minMs ? parsedMax : minMs + DAY_MS;
+  const parsedStart = parseDateOnly(range?.start || defaultMin);
+  const parsedEnd = parseDateOnly(range?.end || defaultMax);
+  const startMs = Math.max(minMs, Math.min(maxMs, parsedStart ?? minMs));
+  const endMs = Math.max(startMs, Math.min(maxMs, parsedEnd ?? maxMs));
+  const normalizedRange = {
+    start: formatDateOnly(startMs),
+    end: formatDateOnly(endMs),
+  };
 
-  const pct = (ms: number) => ((ms - minMs) / (maxMs - minMs)) * 100;
+  const pct = (ms: number) =>
+    Math.max(0, Math.min(100, ((ms - minMs) / (maxMs - minMs)) * 100));
 
   const updateFromSlider = (which: "start" | "end", raw: number) => {
     const ms = minMs + (raw / 100) * (maxMs - minMs);
-    const date = format(new Date(ms), "yyyy-MM-dd");
+    const date = formatDateOnly(ms);
     if (which === "start") {
       setRange({
         start: date,
-        end: range!.end < date ? date : range!.end,
+        end: normalizedRange.end < date ? date : normalizedRange.end,
       });
     } else {
       setRange({
-        start: range!.start > date ? date : range!.start,
+        start: normalizedRange.start > date ? date : normalizedRange.start,
         end: date,
       });
     }
@@ -1811,7 +1942,8 @@ export function TimelineSlicer({
   return (
     <SlicerShell label={label} className={className}>
       <div className="space-y-3">
-        <div className="relative h-2 rounded-full bg-muted">
+        <div className="relative h-10">
+          <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-muted">
           <div
             className="absolute h-full rounded-full bg-accent/30"
             style={{
@@ -1819,34 +1951,35 @@ export function TimelineSlicer({
               width: `${pct(endMs) - pct(startMs)}%`,
             }}
           />
-        </div>
-        <div className="flex gap-2">
+          </div>
           <input
             type="range"
             aria-label={label ? `${label} start` : "Start date"}
-            aria-valuetext={range?.start}
+            aria-valuetext={normalizedRange.start}
             disabled={disabled}
             min={0}
             max={100}
+            step={0.1}
             value={pct(startMs)}
             onChange={(e) => updateFromSlider("start", Number(e.target.value))}
-            className="flex-1 accent-accent"
+            className="pointer-events-none absolute inset-0 h-10 w-full appearance-none bg-transparent accent-accent [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:pointer-events-auto"
           />
           <input
             type="range"
             aria-label={label ? `${label} end` : "End date"}
-            aria-valuetext={range?.end}
+            aria-valuetext={normalizedRange.end}
             disabled={disabled}
             min={0}
             max={100}
+            step={0.1}
             value={pct(endMs)}
             onChange={(e) => updateFromSlider("end", Number(e.target.value))}
-            className="flex-1 accent-accent"
+            className="pointer-events-none absolute inset-0 h-10 w-full appearance-none bg-transparent accent-accent [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:pointer-events-auto"
           />
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{range?.start}</span>
-          <span>{range?.end}</span>
+          <span>{normalizedRange.start}</span>
+          <span>{normalizedRange.end}</span>
         </div>
       </div>
     </SlicerShell>

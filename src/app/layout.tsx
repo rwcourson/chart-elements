@@ -32,11 +32,11 @@ export default function RootLayout({
       className={`${manrope.variable} ${geistMono.variable} h-full`}
     >
       <body className="min-h-full bg-background font-sans text-foreground antialiased">
-        {/* Apply stored (or default Berry) palette before paint — Berry lives on
-            data-palette, so first visits must set the attribute, not leave bare :root. */}
+        {/* Apply the stored palette before paint. Neutral is the bare token set;
+            named alternatives live on data-palette. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var p=localStorage.getItem("ce-palette")||"berry";if(p==="bg-time")document.documentElement.removeAttribute("data-palette");else document.documentElement.setAttribute("data-palette",p);}catch(e){document.documentElement.setAttribute("data-palette","berry");}})();`,
+            __html: `(function(){try{var p=localStorage.getItem("ce-palette")||"neutral";var a=["neutral","berry","ocean","sunset","forest","slate","vivid"];if(a.indexOf(p)<0)p="neutral";if(p==="neutral")document.documentElement.removeAttribute("data-palette");else document.documentElement.setAttribute("data-palette",p);}catch(e){document.documentElement.removeAttribute("data-palette");}})();`,
           }}
         />
         <ThemeProvider

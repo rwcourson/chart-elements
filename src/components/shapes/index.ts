@@ -10,3 +10,21 @@ export {
   ArrowShape,
   ReportShape,
 } from "./shape-visuals";
+
+export type {
+  VisualFrameProps,
+  ImageFit,
+  ImageSourceModel,
+  ImageFallbackState,
+  ImageFallback,
+  ImageVisualProps,
+  StaticImageProps,
+  DynamicImageProps,
+  TextBoxProps,
+  DynamicTextProps,
+  RectangleShapeProps,
+  OvalShapeProps,
+  LineShapeProps,
+  ArrowShapeProps,
+  ReportShapeProps,
+} from "./shape-visuals";

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "./palettes.css";
 
-/* B&G Time palette — Toolbench: fills, hairlines, type scale */
+/* Neutral foundation — cool surfaces, balanced categorical colors, clear type. */
 
 :root {
   --background: #eef0f4;
@@ -16,10 +16,10 @@
   --border: rgb(15 23 42 / 0.12);
   --border-strong: rgb(15 23 42 / 0.2);
   --border-soft: rgb(15 23 42 / 0.07);
-  --ring: #315fbb;
-  --accent: #0c2048;
-  --accent-hover: #16356e;
-  --accent-soft: rgb(12 32 72 / 0.09);
+  --ring: #2563eb;
+  --accent: #334155;
+  --accent-hover: #1e293b;
+  --accent-soft: rgb(51 65 85 / 0.09);
   --accent-foreground: #ffffff;
   --destructive: #9c343c;
   --destructive-soft: #f9e9ea;
@@ -35,25 +35,33 @@
   --warning: #8a5010;
   --warning-soft: #f8eddf;
 
-  --chart-1: #0c2048;
-  --chart-2: #315fbb;
-  --chart-3: #1f6b4a;
-  --chart-4: #8a5010;
-  --chart-5: #9c343c;
-  --chart-6: #5b6675;
-  --chart-7: #16356e;
-  --chart-8: #4a7fd4;
-  --chart-positive: #1f6b4a;
-  --chart-negative: #9c343c;
-  --chart-neutral: #5b6675;
-  --chart-warning: #8a5010;
+  --chart-1: #1d4ed8;
+  --chart-2: #0f766e;
+  --chart-3: #7c3aed;
+  --chart-4: #b45309;
+  --chart-5: #be123c;
+  --chart-6: #475569;
+  --chart-7: #0369a1;
+  --chart-8: #4d7c0f;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #ffffff;
+  --chart-on-3: #ffffff;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #ffffff;
+  --chart-positive: #047857;
+  --chart-negative: #be123c;
+  --chart-neutral: #475569;
+  --chart-warning: #a16207;
   --chart-grid: rgb(15 23 42 / 0.08);
   /* Axis ticks are normal-size text, so this has to clear WCAG 4.5:1 on the
      card. The previous #7b8593 only reached 3.74:1; this is 4.66:1. */
   --chart-axis: #6b7585;
-  /* Readable ink for labels drawn ON TOP of a --chart-* fill. Light theme
-     fills are deep navy, so labels invert to near-white. */
-  --chart-label: #ffffff;
+  /* Backward-compatible fallback. New custom marks should pair each fill with
+     --chart-on-N (or foregroundAt()) rather than assuming one ink fits all. */
+  --chart-label: var(--chart-on-1);
   /* Solid, not glass: a translucent tooltip lets the marks bleed through and
      the numbers get hard to read (user feedback). */
   --chart-tooltip-bg: #ffffff;
@@ -62,7 +70,7 @@
   --overlay-shadow: 0 12px 32px rgb(15 23 42 / 0.14);
 
   --sidebar-bg: rgb(249 250 252 / 0.92);
-  --sidebar-active: rgb(12 32 72 / 0.07);
+  --sidebar-active: rgb(51 65 85 / 0.08);
   --sidebar-hover: rgb(15 23 42 / 0.05);
   --header-bg: rgb(249 250 252 / 0.86);
   --page-gutter: 32px;
@@ -82,10 +90,10 @@
   --border: rgb(255 255 255 / 0.13);
   --border-strong: rgb(255 255 255 / 0.22);
   --border-soft: rgb(255 255 255 / 0.08);
-  --ring: #93b4ff;
-  --accent: #93a9d6;
-  --accent-hover: #adbfe4;
-  --accent-soft: rgb(147 169 214 / 0.18);
+  --ring: #93c5fd;
+  --accent: #cbd5e1;
+  --accent-hover: #e2e8f0;
+  --accent-soft: rgb(203 213 225 / 0.16);
   --accent-foreground: #121826;
   --destructive: #e99ba1;
   --destructive-soft: rgb(233 155 161 / 0.16);
@@ -98,23 +106,30 @@
   --warning: #e0a45e;
   --warning-soft: rgb(224 164 94 / 0.16);
 
-  --chart-1: #93a9d6;
-  --chart-2: #93b4ff;
-  --chart-3: #7cc79d;
-  --chart-4: #e0a45e;
-  --chart-5: #e99ba1;
-  --chart-6: #a2acbd;
-  --chart-7: #adbfe4;
-  --chart-8: #cdd5e1;
-  --chart-positive: #7cc79d;
-  --chart-negative: #e99ba1;
-  --chart-neutral: #a2acbd;
-  --chart-warning: #e0a45e;
+  --chart-1: #60a5fa;
+  --chart-2: #5eead4;
+  --chart-3: #c4b5fd;
+  --chart-4: #fbbf24;
+  --chart-5: #fb7185;
+  --chart-6: #cbd5e1;
+  --chart-7: #7dd3fc;
+  --chart-8: #bef264;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-positive: #6ee7b7;
+  --chart-negative: #fda4af;
+  --chart-neutral: #cbd5e1;
+  --chart-warning: #fcd34d;
   --chart-grid: rgb(255 255 255 / 0.08);
   /* 4.46:1 on the dark card was fractionally under the bar; this is 5.46:1. */
   --chart-axis: #939eb0;
-  /* Dark theme fills are light pastels — labels must go dark, not white. */
-  --chart-label: #121826;
+  --chart-label: var(--chart-on-1);
   --chart-tooltip-bg: #1f2839;
   --chart-tooltip-fg: #f4f6fa;
   --chart-tooltip-border: rgb(255 255 255 / 0.13);
@@ -146,6 +161,14 @@
   --color-border-strong: var(--border-strong);
   --color-border-soft: var(--border-soft);
   --color-chart-label: var(--chart-label);
+  --color-chart-on-1: var(--chart-on-1);
+  --color-chart-on-2: var(--chart-on-2);
+  --color-chart-on-3: var(--chart-on-3);
+  --color-chart-on-4: var(--chart-on-4);
+  --color-chart-on-5: var(--chart-on-5);
+  --color-chart-on-6: var(--chart-on-6);
+  --color-chart-on-7: var(--chart-on-7);
+  --color-chart-on-8: var(--chart-on-8);
   --color-destructive-foreground: var(--destructive-foreground);
   /* Literal values: Tailwind's theme namespace shares the --radius-* prefix
      with the root tokens above, so referencing them here would be circular.
@@ -202,34 +225,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Recharts marks the surface and inner layers focusable so keyboard users can
-   walk data points. The browser's default ring draws the focused layer's
-   bounding box, which reads as a stray selection rectangle across the plot.
-   Suppress the inner boxes and show one token ring on the surface instead. */
+/* Chart marks: no selection / focus boxes. Blue outline-offset rings on
+   tabIndex marks (chord wedges, gantt bars, etc.) read as UI chrome, not data.
+   Keyboard a11y still uses aria-label / role on those elements; form controls
+   outside the plot keep their normal focus rings. */
 .recharts-wrapper :focus,
 .recharts-wrapper :focus-visible,
 .recharts-surface:focus,
-.recharts-layer:focus {
-  outline: none;
-}
-
-.recharts-surface:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-/* Custom SVG charts (trees, dependency graphs, etc.) live inside a surface
-   that clips overflow. The browser's default focus rectangle is square and
-   paints outside the node, so it reads as a selection box with chopped
-   corners — especially on the leftmost chip of a horizontal tree. */
-.chart-surface svg:focus,
-.chart-surface svg :focus,
-.chart-surface svg:focus-visible,
-.chart-surface svg :focus-visible,
-[data-chart-svg] svg:focus,
-[data-chart-svg] svg :focus {
-  outline: none;
+.recharts-surface:focus-visible,
+.chart-surface :focus,
+.chart-surface :focus-visible,
+.chart-surface [tabindex],
+.chart-surface [tabindex]:focus,
+.chart-surface [tabindex]:focus-visible,
+[data-chart-svg] :focus,
+[data-chart-svg] :focus-visible,
+[data-chart-svg] [tabindex],
+[data-chart-svg] [tabindex]:focus,
+[data-chart-svg] [tabindex]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  /* Some engines draw a focus ring via filter / -webkit-focus-ring-color */
+  filter: none !important;
 }
 
 .recharts-legend-wrapper {
@@ -296,16 +314,35 @@ body {
    Cells) re-runs Recharts' sector animation on every hover, and Recharts
    hides labels while animating — the callouts flickered off. CSS only toggles
    opacity, so nothing re-renders and the words stay put. :has keeps the dim
-   scoped to real sector hovers — hovering the donut hole dims nothing. */
+   scoped to real sector hovers — hovering the donut hole dims nothing.
+
+   Labels and the HTML tooltip wrapper must not capture the pointer: both sit
+   above the wedges. Without this, :hover flips off the moment the tooltip
+   mounts under the cursor and isolation never sticks. */
+.ce-pie .recharts-pie-labels,
+.ce-pie .recharts-pie-labels *,
+.ce-pie .recharts-tooltip-wrapper {
+  pointer-events: none;
+}
+
 .ce-pie .recharts-pie-sector {
+  cursor: pointer;
   transition: opacity 160ms ease;
 }
 
-.ce-pie:has(.recharts-pie-sector:hover) .recharts-pie-sector {
-  opacity: 0.35;
+.ce-pie .recharts-pie-sector .recharts-sector {
+  transition: opacity 160ms ease;
 }
 
-.ce-pie .recharts-pie-sector:hover {
+/* Prefer :has on the sector path itself — Recharts puts the hit target on the
+   Sector path, not always on the wrapping Layer. */
+.ce-pie:has(.recharts-pie-sector:hover) .recharts-pie-sector,
+.ce-pie:has(.recharts-sector:hover) .recharts-pie-sector {
+  opacity: 0.38;
+}
+
+.ce-pie .recharts-pie-sector:hover,
+.ce-pie .recharts-pie-sector:has(.recharts-sector:hover) {
   opacity: 1;
 }
 
@@ -420,7 +457,23 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .recharts-wrapper *,
+  .chart-surface *,
+  [data-chart-svg] *,
   .chart-skeleton::after,
   .ce-layer,
   .ce-tree-children,
@@ -433,6 +486,8 @@ body {
     transition: none !important;
   }
 }
+
+/* Forced-colors: still suppress mark selection boxes; form controls use UA focus. */
 
 /* Chart content breathing room — keep block layout for Recharts measure.
    overflow must stay VISIBLE: the HTML tooltip is positioned inside the

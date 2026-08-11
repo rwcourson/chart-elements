@@ -125,7 +125,7 @@ export function PalettePicker({ className }: { className?: string }) {
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          "inline-flex h-[38px] items-center gap-2 rounded-[var(--radius)] border border-border bg-card px-2.5 text-[13px] font-semibold tracking-[-0.01em]",
+          "inline-flex h-11 items-center gap-2 rounded-[var(--radius)] border border-border bg-card px-2.5 text-[13px] font-semibold tracking-[-0.01em]",
           "hover:bg-[var(--sidebar-hover)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
         )}
         onClick={() => {

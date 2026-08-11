@@ -1,18 +1,33 @@
 "use client";
 
 import { cn, formatCompact } from "@/lib/utils";
-import { ArrowDownRight, ArrowUpRight, ExternalLink, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, ExternalLink, Minus } from "lucide-react";
+import { useMemo, useState, type Key, type ReactNode } from "react";
+
+export type TableCellValue = string | number | readonly number[] | null | undefined;
+
+export type TableRow = Record<string, TableCellValue>;
+
+export type TableValueFormatter = (
+  value: TableCellValue,
+  row: TableRow,
+) => ReactNode;
 
 export type TableColumn = {
   key: string;
   label: string;
   numeric?: boolean;
-  format?: "number" | "percent" | "text";
+  format?: "number" | "percent" | "text" | TableValueFormatter;
+  imageAlt?: string | ((row: TableRow) => string);
+  linkLabel?: string | ((row: TableRow) => string);
+  render?: TableValueFormatter;
 };
 
 export type DataTableProps = {
   columns: TableColumn[];
-  rows: Record<string, string | number | null | undefined>[];
+  rows: TableRow[];
+  rowId?: string | ((row: TableRow, index: number) => Key);
+  locale?: string;
   showTotals?: boolean;
   conditionalBackground?: boolean;
   conditionalFont?: boolean;
@@ -21,24 +36,65 @@ export type DataTableProps = {
   linkKeys?: string[];
   imageKeys?: string[];
   sparklineKey?: string;
+  onRowSelect?: (row: TableRow, index: number) => void;
+  selectedRowIds?: ReadonlySet<Key>;
   /** Rendered as a visually hidden <caption> and used as the table's accessible name. */
   caption?: string;
 };
 
-function Spark({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
+function finiteNumber(value: TableCellValue): number | null {
+  if (Array.isArray(value)) return null;
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function safeExternalUrl(value: string): string | null {
+  try {
+    const url = new URL(value, "https://chart-elements.invalid");
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function formatValue(
+  value: TableCellValue,
+  column: TableColumn,
+  row: TableRow,
+  locale: string,
+): ReactNode {
+  if (column.render) return column.render(value, row);
+  if (typeof column.format === "function") return column.format(value, row);
+  if (column.format === "text" || !column.numeric) return String(value ?? "");
+
+  const number = finiteNumber(value);
+  if (number === null) return "—";
+  if (column.format === "percent") {
+    return new Intl.NumberFormat(locale, {
+      style: "percent",
+      maximumFractionDigits: 1,
+    }).format(number);
+  }
+  return formatCompact(number);
+}
+
+function Spark({ values, label }: { values: readonly number[]; label: string }) {
+  const finiteValues = values.filter(Number.isFinite);
+  if (finiteValues.length === 0) return <span className="text-muted-foreground">—</span>;
+  const max = Math.max(...finiteValues, 1);
+  const min = Math.min(...finiteValues, 0);
   const w = 64;
   const h = 20;
-  const pts = values
+  const pts = finiteValues
     .map((v, i) => {
-      const x = (i / Math.max(values.length - 1, 1)) * w;
+      const x = (i / Math.max(finiteValues.length - 1, 1)) * w;
       const y = h - ((v - min) / (max - min || 1)) * h;
       return `${x},${y}`;
     })
     .join(" ");
   return (
-    <svg width={w} height={h} className="overflow-visible">
+    <svg width={w} height={h} className="overflow-visible" role="img" aria-label={label}>
       <polyline
         fill="none"
         stroke="var(--chart-1)"
@@ -52,6 +108,8 @@ function Spark({ values }: { values: number[] }) {
 export function DataTable({
   columns,
   rows,
+  rowId,
+  locale = "en-US",
   showTotals,
   conditionalBackground,
   conditionalFont,
@@ -60,20 +118,30 @@ export function DataTable({
   linkKeys = [],
   imageKeys = [],
   sparklineKey,
+  onRowSelect,
+  selectedRowIds,
   caption,
 }: DataTableProps) {
   const numericCols = columns.filter((c) => c.numeric);
-  const maxByCol = Object.fromEntries(
-    numericCols.map((c) => [
-      c.key,
-      Math.max(...rows.map((r) => Number(r[c.key] ?? 0)), 1),
-    ]),
-  );
+  const extentByCol = Object.fromEntries(
+    numericCols.map((column) => {
+      const values = rows
+        .map((row) => finiteNumber(row[column.key]))
+        .filter((value): value is number => value !== null);
+      return [
+        column.key,
+        {
+          min: values.length ? Math.min(...values) : 0,
+          max: values.length ? Math.max(...values) : 0,
+        },
+      ];
+    }),
+  ) as Record<string, { min: number; max: number }>;
 
   const totals = Object.fromEntries(
     numericCols.map((c) => [
       c.key,
-      rows.reduce((s, r) => s + Number(r[c.key] ?? 0), 0),
+      rows.reduce((sum, row) => sum + (finiteNumber(row[c.key]) ?? 0), 0),
     ]),
   );
 
@@ -85,7 +153,12 @@ export function DataTable({
     numericCols.map((c) => [
       c.key,
       Math.max(
-        ...rows.map((r) => formatCompact(Number(r[c.key] ?? 0)).length),
+        ...rows.map((row) => {
+          const formatted = formatValue(row[c.key], c, row, locale);
+          return typeof formatted === "string" || typeof formatted === "number"
+            ? String(formatted).length
+            : 1;
+        }),
         1,
       ),
     ]),
@@ -110,8 +183,27 @@ export function DataTable({
 
   // max-h rather than h: a short table hugs its rows instead of framing a
   // block of empty space, while a long one still scrolls inside the card.
+  if (!rows.length) {
+    return (
+      <div
+        className="flex h-full min-h-[120px] flex-col items-center justify-center gap-1 rounded-[var(--radius)] border border-dashed border-border bg-muted/40 px-4 py-8 text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="text-sm font-medium text-foreground">No rows</span>
+        <span className="text-[13px] text-muted-foreground">
+          {caption ? `${caption} has no data to show.` : "This table has no data to show."}
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-h-full overflow-auto rounded-[var(--radius)] border border-border">
+    <div
+      className="max-h-full overflow-auto rounded-[var(--radius)] border border-border"
+      tabIndex={0}
+      aria-label={caption ? `Scrollable ${caption}` : "Scrollable data table"}
+    >
       <table
         className="w-full border-collapse text-sm"
         aria-label={caption ? undefined : "Data table"}
@@ -158,13 +250,41 @@ export function DataTable({
         </thead>
         <tbody>
           {rows.map((row, ri) => {
+            const resolvedRowId =
+              typeof rowId === "function"
+                ? rowId(row, ri)
+                : rowId
+                  ? String(row[rowId] ?? ri)
+                  : ri;
+            const selected = selectedRowIds?.has(resolvedRowId) ?? false;
             const last = ri === rows.length - 1 && !showTotals;
             return (
-            <tr key={ri} className="hover:bg-muted/40">
+            <tr
+              key={resolvedRowId}
+              className={cn("hover:bg-muted/40", selected && "bg-muted/60", onRowSelect && "cursor-pointer")}
+              aria-selected={onRowSelect ? selected : undefined}
+              tabIndex={onRowSelect ? 0 : undefined}
+              onClick={onRowSelect ? () => onRowSelect(row, ri) : undefined}
+              onKeyDown={
+                onRowSelect
+                  ? (event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onRowSelect(row, ri);
+                      }
+                    }
+                  : undefined
+              }
+            >
               {columns.map((col) => {
                 const raw = row[col.key];
-                const num = Number(raw ?? 0);
-                const intensity = col.numeric ? num / (maxByCol[col.key] || 1) : 0;
+                const num = finiteNumber(raw);
+                const extent = extentByCol[col.key] ?? { min: 0, max: 0 };
+                const span = Math.max(extent.max - extent.min, 1);
+                const intensity = col.numeric && num !== null ? (num - extent.min) / span : 0;
+                const magnitude = num === null
+                  ? 0
+                  : Math.abs(num) / Math.max(Math.abs(extent.min), Math.abs(extent.max), 1);
                 const isLink = linkKeys.includes(col.key);
                 const isImage = images.has(col.key);
 
@@ -182,21 +302,22 @@ export function DataTable({
                       hugs.has(col.key) && hugClass,
                       conditionalFont &&
                         col.numeric &&
-                        (num > (maxByCol[col.key] || 0) * 0.7
+                        num !== null &&
+                        (num > extent.min + span * 0.7
                           ? "text-[var(--chart-positive)]"
-                          : num < (maxByCol[col.key] || 0) * 0.35
+                          : num < extent.min + span * 0.35
                             ? "text-[var(--chart-negative)]"
                             : ""),
                     )}
                     style={
                       conditionalBackground && col.numeric
                         ? {
-                            background: `color-mix(in oklab, var(--chart-1) ${Math.round(intensity * 35)}%, transparent)`,
+                            background: `color-mix(in oklab, var(--chart-1) ${Math.round(Math.max(0, Math.min(1, intensity)) * 35)}%, transparent)`,
                           }
                         : undefined
                     }
                   >
-                    {showDataBars && col.numeric ? (
+                    {showDataBars && col.numeric && num !== null ? (
                       /*
                         Bar and value get separate lanes. The bar used to be laid
                         across the whole cell underneath a right-aligned number,
@@ -206,9 +327,25 @@ export function DataTable({
                         the same track, which is what makes the lengths comparable.
                       */
                       <span className="relative flex h-5 items-center overflow-hidden rounded-[3px] bg-[var(--chart-1)]/10">
+                        {extent.min < 0 && extent.max > 0 ? (
+                          <span
+                            className="absolute inset-y-0 w-px bg-foreground/40"
+                            style={{ left: `${(-extent.min / span) * 100}%` }}
+                            aria-hidden="true"
+                          />
+                        ) : null}
                         <span
-                          className="absolute inset-y-0 left-0 bg-[var(--chart-1)]/45"
-                          style={{ width: `${Math.max(intensity * 100, 1.5)}%` }}
+                          className={cn(
+                            "absolute inset-y-0",
+                            num < 0 ? "bg-[var(--chart-negative)]/45" : "bg-[var(--chart-1)]/45",
+                          )}
+                          style={
+                            extent.min < 0 && extent.max > 0
+                              ? num < 0
+                                ? { right: `${(extent.max / span) * 100}%`, width: `${magnitude * 100}%` }
+                                : { left: `${(-extent.min / span) * 100}%`, width: `${magnitude * 100}%` }
+                              : { left: 0, width: `${Math.max(magnitude * 100, 1.5)}%` }
+                          }
                         />
                         {/*
                           The value is a label on the track, not a sibling column:
@@ -218,7 +355,7 @@ export function DataTable({
                           leaves the full cell width for the bar.
                         */}
                         <span className="relative ml-auto pr-1.5 tabular-nums">
-                          {formatCompact(num)}
+                          {formatValue(raw, col, row, locale)}
                         </span>
                       </span>
                     ) : (
@@ -228,10 +365,10 @@ export function DataTable({
                         isImage && "justify-center",
                       )}
                     >
-                      {showIcons && col.numeric ? (
-                        num > (maxByCol[col.key] || 0) * 0.55 ? (
+                      {showIcons && col.numeric && num !== null ? (
+                        num > extent.min + span * 0.55 ? (
                           <ArrowUpRight className="h-3.5 w-3.5 text-[var(--chart-positive)]" />
-                        ) : num < (maxByCol[col.key] || 0) * 0.4 ? (
+                        ) : num < extent.min + span * 0.4 ? (
                           <ArrowDownRight className="h-3.5 w-3.5 text-[var(--chart-negative)]" />
                         ) : (
                           <Minus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -241,24 +378,35 @@ export function DataTable({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={raw}
-                          alt=""
+                          alt={
+                            typeof col.imageAlt === "function"
+                              ? col.imageAlt(row)
+                              : col.imageAlt ?? ""
+                          }
                           className="size-7 rounded-[var(--radius-sm)] object-cover"
                         />
-                      ) : isLink && typeof raw === "string" ? (
+                      ) : isLink && typeof raw === "string" && safeExternalUrl(raw) ? (
                         <a
                           href={raw}
                           className="inline-flex items-center gap-1 text-accent hover:underline"
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                         >
-                          Open <ExternalLink className="h-3 w-3" />
+                          {typeof col.linkLabel === "function"
+                            ? col.linkLabel(row)
+                            : col.linkLabel ?? "Open"}{" "}
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
                         </a>
+                      ) : isLink && typeof raw === "string" ? (
+                        <span className="text-muted-foreground" title="Only HTTP and HTTPS links are supported">
+                          Invalid link
+                        </span>
                       ) : col.numeric ? (
                         <span
                           className="text-right tabular-nums"
                           style={{ minWidth: `${widthByCol[col.key]}ch` }}
                         >
-                          {formatCompact(num)}
+                          {formatValue(raw, col, row, locale)}
                         </span>
                       ) : (
                         String(raw ?? "")
@@ -280,9 +428,12 @@ export function DataTable({
                   <Spark
                     values={
                       Array.isArray(row[sparklineKey])
-                        ? (row[sparklineKey] as unknown as number[])
-                        : numericCols.map((c) => Number(row[c.key] ?? 0))
+                        ? (row[sparklineKey] as readonly number[])
+                        : numericCols
+                            .map((column) => finiteNumber(row[column.key]))
+                            .filter((value): value is number => value !== null)
                     }
+                    label={`${caption ?? "Data table"}, row ${ri + 1} trend`}
                   />
                 </td>
               ) : null}
@@ -305,7 +456,7 @@ export function DataTable({
                   {i === 0
                     ? "Total"
                     : col.numeric
-                      ? formatCompact(Number(totals[col.key] ?? 0))
+                      ? formatValue(totals[col.key], col, rows[0] ?? {}, locale)
                       : ""}
                 </td>
               ))}
@@ -318,6 +469,30 @@ export function DataTable({
   );
 }
 
+export type MatrixRow = {
+  id?: string;
+  children?: MatrixRow[];
+  [key: string]: string | number | MatrixRow[] | null | undefined;
+};
+
+export type MatrixTableProps = {
+  rows: MatrixRow[];
+  rowKey: string;
+  columns: string[];
+  showSubtotals?: boolean;
+  showGrandTotal?: boolean;
+  caption?: string;
+  expandedIds?: ReadonlySet<string>;
+  defaultExpandedIds?: Iterable<string>;
+  onExpandedChange?: (expandedIds: ReadonlySet<string>) => void;
+};
+
+function matrixLeafRows(rows: readonly MatrixRow[]): MatrixRow[] {
+  return rows.flatMap((row) =>
+    row.children?.length ? matrixLeafRows(row.children) : [row],
+  );
+}
+
 export function MatrixTable({
   rows,
   rowKey,
@@ -325,24 +500,142 @@ export function MatrixTable({
   showSubtotals,
   showGrandTotal,
   caption,
-}: {
-  rows: Record<string, string | number>[];
-  rowKey: string;
-  columns: string[];
-  showSubtotals?: boolean;
-  showGrandTotal?: boolean;
-  /** Rendered as a visually hidden <caption> and used as the table's accessible name. */
-  caption?: string;
-}) {
+  expandedIds,
+  defaultExpandedIds,
+  onExpandedChange,
+}: MatrixTableProps) {
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState<Set<string>>(
+    () => new Set(defaultExpandedIds),
+  );
+  const expanded = expandedIds ?? uncontrolledExpanded;
+
+  const toggleExpanded = (id: string) => {
+    const next = new Set(expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    if (!expandedIds) setUncontrolledExpanded(next);
+    onExpandedChange?.(next);
+  };
+
+  const flattenedRows = useMemo(() => {
+    const flattened: TableRow[] = [];
+    const walk = (items: readonly MatrixRow[], depth: number, parentPath: string) => {
+      items.forEach((row, index) => {
+        const label = String(row[rowKey] ?? "");
+        const id = row.id ?? `${parentPath}/${label || index}`;
+        const children = row.children ?? [];
+        const leaves = children.length ? matrixLeafRows(children) : [row];
+        const values = Object.fromEntries(
+          columns.map((column) => {
+            const explicit = finiteNumber(row[column] as TableCellValue);
+            const aggregate = leaves.reduce(
+              (sum, leaf) => sum + (finiteNumber(leaf[column] as TableCellValue) ?? 0),
+              0,
+            );
+            return [column, explicit ?? aggregate];
+          }),
+        );
+        flattened.push({
+          ...values,
+          [rowKey]: label,
+          __matrixId: id,
+          __matrixDepth: depth,
+          __matrixHasChildren: children.length ? 1 : 0,
+          __matrixExpanded: expanded.has(id) ? 1 : 0,
+          __matrixKind: children.length ? "group" : "value",
+        });
+        if (children.length && expanded.has(id)) {
+          walk(children, depth + 1, id);
+          if (showSubtotals) {
+            flattened.push({
+              ...Object.fromEntries(
+                columns.map((column) => [
+                  column,
+                  leaves.reduce(
+                    (sum, leaf) => sum + (finiteNumber(leaf[column] as TableCellValue) ?? 0),
+                    0,
+                  ),
+                ]),
+              ),
+              [rowKey]: `${label} subtotal`,
+              __matrixId: `${id}/subtotal`,
+              __matrixDepth: depth + 1,
+              __matrixHasChildren: 0,
+              __matrixExpanded: 0,
+              __matrixKind: "subtotal",
+            });
+          }
+        }
+      });
+    };
+    walk(rows, 0, "matrix");
+
+    if (showGrandTotal) {
+      const leaves = matrixLeafRows(rows);
+      flattened.push({
+        ...Object.fromEntries(
+          columns.map((column) => [
+            column,
+            leaves.reduce(
+              (sum, leaf) => sum + (finiteNumber(leaf[column] as TableCellValue) ?? 0),
+              0,
+            ),
+          ]),
+        ),
+        [rowKey]: "Grand total",
+        __matrixId: "matrix/grand-total",
+        __matrixDepth: 0,
+        __matrixHasChildren: 0,
+        __matrixExpanded: 0,
+        __matrixKind: "grand-total",
+      });
+    }
+    return flattened;
+  }, [columns, expanded, rowKey, rows, showGrandTotal, showSubtotals]);
+
   const tableCols: TableColumn[] = [
-    { key: rowKey, label: "Group" },
+    {
+      key: rowKey,
+      label: "Group",
+      render: (value, row) => {
+        const id = String(row.__matrixId ?? "");
+        const depth = finiteNumber(row.__matrixDepth) ?? 0;
+        const hasChildren = finiteNumber(row.__matrixHasChildren) === 1;
+        const isExpanded = finiteNumber(row.__matrixExpanded) === 1;
+        const kind = String(row.__matrixKind ?? "value");
+        return (
+          <span
+            className={cn(
+              "inline-flex min-h-7 items-center gap-1",
+              (kind === "subtotal" || kind === "grand-total") && "font-semibold",
+            )}
+            style={{ paddingInlineStart: `${depth * 16}px` }}
+          >
+            {hasChildren ? (
+              <button
+                type="button"
+                className="inline-flex size-7 items-center justify-center rounded-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                aria-label={`${isExpanded ? "Collapse" : "Expand"} ${String(value ?? "group")}`}
+                aria-expanded={isExpanded}
+                onClick={() => toggleExpanded(id)}
+              >
+                {isExpanded ? <ChevronDown className="size-4" /> : <ArrowRight className="size-4" />}
+              </button>
+            ) : (
+              <span className="inline-block size-7" aria-hidden="true" />
+            )}
+            {String(value ?? "")}
+          </span>
+        );
+      },
+    },
     ...columns.map((c) => ({ key: c, label: c.toUpperCase(), numeric: true as const })),
   ];
   return (
     <DataTable
       columns={tableCols}
-      rows={rows}
-      showTotals={showGrandTotal || showSubtotals}
+      rows={flattenedRows}
+      rowId="__matrixId"
       conditionalBackground
       caption={caption ?? "Matrix table"}
     />

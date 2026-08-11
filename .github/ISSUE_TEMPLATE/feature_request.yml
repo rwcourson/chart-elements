@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a focused component, API, accessibility, or tooling improvement.
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user need, not only the requested implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and prior art
+      description: Link references and disclose vendor-specific behavior or licensing constraints.

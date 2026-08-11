@@ -51,3 +51,24 @@ export function formatPercent(value: number, digits = 0): string {
     maximumFractionDigits: digits,
   }).format(value);
 }
+
+/**
+ * Normalizes floating-point geometry before it reaches SVG attributes. Server
+ * and browser engines can otherwise serialize the last ULP differently and
+ * trigger hydration warnings for visually identical trigonometric geometry.
+ */
+export function roundSvgNumber(value: number, digits = 4): number {
+  if (!Number.isFinite(value)) return value;
+  return Number(value.toFixed(digits));
+}
+
+/** Round every numeric token in an SVG path while preserving its commands. */
+export function roundSvgPath(path: string, digits = 4): string {
+  return path.replace(
+    /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi,
+    (token) => {
+      const value = Number(token);
+      return Number.isFinite(value) ? String(roundSvgNumber(value, digits)) : token;
+    },
+  );
+}

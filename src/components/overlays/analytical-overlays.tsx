@@ -1,16 +1,17 @@
 "use client";
 
-import {
-  CartesianGrid,
+import * as React from "react";
+import {CartesianGrid,
+  ErrorBar,
   Line,
   LineChart,
   ReferenceLine,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
+  YAxis} from "recharts";
+import { ChartResponsiveContainer } from "@/components/charts/chart-responsive";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { PLOT_MARGIN_COMPACT, SERIES_STROKE_WIDTH } from "@/lib/chart-marks";
 import { useChartAnimation } from "@/lib/chart-motion";
 import { timeSeries } from "@/lib/sample-data";
 import { ChartEmpty } from "@/components/charts/chart-frame";
@@ -24,6 +25,59 @@ type RefLabelProps = {
   /** Horizontal (y=) lines sit the chip on the right; vertical (x=) lines sit it at the top. */
   orientation?: "horizontal" | "vertical";
 };
+
+export type AnalyticalOverlayDatum = Record<string, string | number | null | undefined>;
+
+export type ReferenceLinesChartProps = {
+  data?: AnalyticalOverlayDatum[];
+  categoryKey?: string;
+  valueKey?: string;
+  average?: boolean;
+  min?: boolean;
+  max?: boolean;
+  median?: boolean;
+  percentile?: number;
+  constant?: number;
+};
+
+export type ErrorBarDatum = {
+  date: string;
+  value: number;
+  /** Symmetric error, or `[lowerError, upperError]`. */
+  error: number | [number, number];
+};
+
+export type CrossFilterGroup = {
+  id: string;
+  label: string;
+  data: AnalyticalOverlayDatum[];
+};
+
+export type CrossFilterDemoProps = {
+  groups?: CrossFilterGroup[];
+  selectedId?: string;
+  defaultSelectedId?: string;
+  onSelectionChange?: (id: string) => void;
+};
+
+export type DrillLevel = {
+  id: string;
+  label: string;
+  value: number;
+  children?: DrillLevel[];
+};
+
+/** Linear interpolation quantile over finite values. */
+export function quantile(values: number[], percentile: number): number {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const p = Math.max(0, Math.min(1, percentile));
+  const position = (sorted.length - 1) * p;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
 
 /**
  * Reference-line caption with a solid card chip behind it. Plain Recharts
@@ -81,8 +135,7 @@ function refLabel(value: string, orientation: "horizontal" | "vertical" = "horiz
 }
 
 export function SmallMultiples({
-  series = ["revenue", "cost", "forecast"],
-}: {
+  series = ["revenue", "cost", "forecast"]}: {
   series?: string[];
 }) {
   return (
@@ -115,40 +168,39 @@ export function FacetedCharts() {
 }
 
 export function ReferenceLinesChart({
+  data = timeSeries,
+  categoryKey = "date",
+  valueKey = "revenue",
   average,
   min,
   max,
   median,
-  constant,
-}: {
-  average?: boolean;
-  min?: boolean;
-  max?: boolean;
-  median?: boolean;
-  constant?: number;
-}) {
-  const values = timeSeries.map((d) => d.revenue);
+  percentile,
+  constant}: ReferenceLinesChartProps) {
+  const values = data
+    .map((datum) => Number(datum[valueKey]))
+    .filter(Number.isFinite);
   const avg = values.reduce((a, b) => a + b, 0) / (values.length || 1);
   const mn = values.length ? Math.min(...values) : 0;
   const mx = values.length ? Math.max(...values) : 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const med = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  const med = quantile(values, 0.5);
+  const percentileValue = percentile == null ? undefined : quantile(values, percentile);
   const anim = useChartAnimation();
 
   if (values.length === 0) return <ChartEmpty />;
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+    <ChartResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ ...PLOT_MARGIN_COMPACT, right: 16 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="date" tickLine={false} axisLine={false} />
+        <XAxis dataKey={categoryKey} tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
         <Line
           type="monotone"
-          dataKey="revenue"
+          dataKey={valueKey}
           stroke={CHART_COLORS[0]}
-          strokeWidth={2.25}
+          strokeWidth={SERIES_STROKE_WIDTH}
           strokeLinecap="round"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
@@ -166,6 +218,14 @@ export function ReferenceLinesChart({
         {median ? (
           <ReferenceLine y={med} stroke={CHART_COLORS[4]} strokeDasharray="4 4" label={refLabel("Med")} />
         ) : null}
+        {percentileValue != null ? (
+          <ReferenceLine
+            y={percentileValue}
+            stroke={CHART_COLORS[5]}
+            strokeDasharray="5 3"
+            label={refLabel(`P${Math.round(Math.max(0, Math.min(1, percentile ?? 0)) * 100)}`)}
+          />
+        ) : null}
         {constant != null ? (
           <ReferenceLine
             y={constant}
@@ -175,7 +235,7 @@ export function ReferenceLinesChart({
           />
         ) : null}
       </LineChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }
 
@@ -194,8 +254,8 @@ export function MaxLine() {
 export function MedianLine() {
   return <ReferenceLinesChart median />;
 }
-export function PercentileLine() {
-  return <ReferenceLinesChart constant={5800} />;
+export function PercentileLine({ percentile = 0.9 }: { percentile?: number }) {
+  return <ReferenceLinesChart percentile={percentile} />;
 }
 export function DynamicReferenceLine() {
   return <ReferenceLinesChart average max />;
@@ -203,8 +263,8 @@ export function DynamicReferenceLine() {
 export function XAxisReferenceLine() {
   const anim = useChartAnimation();
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={timeSeries} margin={{ top: 20, right: 12, left: 0, bottom: 0 }}>
+    <ChartResponsiveContainer width="100%" height="100%">
+      <LineChart data={timeSeries} margin={{ ...PLOT_MARGIN_COMPACT, top: 20 }} /* room for reference labels */>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
@@ -218,48 +278,65 @@ export function XAxisReferenceLine() {
           type="monotone"
           dataKey="revenue"
           stroke={CHART_COLORS[0]}
-          strokeWidth={2.25}
+          strokeWidth={SERIES_STROKE_WIDTH}
           strokeLinecap="round"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
           {...anim}
         />
       </LineChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }
 export function YAxisReferenceLine() {
   return <ReferenceLinesChart constant={5000} />;
 }
 
-export function ErrorBarsOverlay() {
+export function ErrorBarsOverlay({
+  data = timeSeries.map((point) => ({
+    date: point.date,
+    value: point.revenue,
+    error: point.revenue * 0.08}))}: {
+  data?: ErrorBarDatum[];
+}) {
   const anim = useChartAnimation();
-  const data = timeSeries.map((d) => ({
-    ...d,
-    low: d.revenue * 0.92,
-    high: d.revenue * 1.08,
-  }));
+  const validData = data.filter(
+    (datum) =>
+      Number.isFinite(datum.value) &&
+      (Array.isArray(datum.error)
+        ? datum.error.length === 2 && datum.error.every(Number.isFinite)
+        : Number.isFinite(datum.error)),
+  );
+
+  if (!validData.length) return <ChartEmpty />;
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data}>
+    <ChartResponsiveContainer width="100%" height="100%">
+      <LineChart data={validData} margin={{ ...PLOT_MARGIN_COMPACT, top: 18, right: 16, bottom: 4 }} /* annotation room */>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={40} />
         <Tooltip content={<ChartTooltip />} />
-        <Line type="monotone" dataKey="high" stroke="transparent" dot={false} {...anim} />
-        <Line type="monotone" dataKey="low" stroke="transparent" dot={false} {...anim} />
         <Line
           type="monotone"
-          dataKey="revenue"
+          dataKey="value"
           stroke={CHART_COLORS[0]}
-          strokeWidth={2.25}
+          strokeWidth={SERIES_STROKE_WIDTH}
           strokeLinecap="round"
-          dot
+          dot={{ r: 3, fill: CHART_COLORS[0] }}
           activeDot={{ r: 4, strokeWidth: 0 }}
           {...anim}
-        />
+        >
+          <ErrorBar
+            dataKey="error"
+            direction="y"
+            width={8}
+            stroke={CHART_COLORS[1]}
+            strokeWidth={1.5}
+          />
+        </Line>
       </LineChart>
-    </ResponsiveContainer>
+    </ChartResponsiveContainer>
   );
 }
 
@@ -287,8 +364,7 @@ export function ConditionalDataColors() {
                   ? "var(--chart-positive)"
                   : v < 45
                     ? "var(--chart-negative)"
-                    : "var(--chart-1)",
-            }}
+                    : "var(--chart-1)"}}
           />
           <span className="text-[10px] text-muted-foreground">S{i + 1}</span>
         </div>
@@ -299,8 +375,7 @@ export function ConditionalDataColors() {
 
 export function DynamicTitle({
   title = "Revenue · East · Q2",
-  className,
-}: {
+  className}: {
   title?: string;
   className?: string;
 }) {
@@ -311,56 +386,184 @@ export function DynamicTitle({
   );
 }
 
-export function CrossFilterDemo() {
+const defaultCrossFilterGroups: CrossFilterGroup[] = [
+  {
+    id: "west",
+    label: "West",
+    data: timeSeries.map((point) => ({ ...point, value: point.revenue }))},
+  {
+    id: "east",
+    label: "East",
+    data: timeSeries.map((point) => ({ ...point, value: Math.round(point.revenue * 0.82) }))},
+  {
+    id: "central",
+    label: "Central",
+    data: timeSeries.map((point) => ({ ...point, value: Math.round(point.revenue * 0.68) }))},
+];
+
+export function CrossFilterDemo({
+  groups = defaultCrossFilterGroups,
+  selectedId,
+  defaultSelectedId = groups[0]?.id ?? "",
+  onSelectionChange}: CrossFilterDemoProps) {
+  const [internalSelectedId, setInternalSelectedId] = React.useState(defaultSelectedId);
+  const activeId = selectedId ?? internalSelectedId;
+  const activeGroup = groups.find((group) => group.id === activeId) ?? groups[0];
+  const selectGroup = (id: string) => {
+    if (selectedId === undefined) setInternalSelectedId(id);
+    onSelectionChange?.(id);
+  };
+
+  if (!groups.length) return <ChartEmpty />;
+
   return (
     // Each panel is a column so the caption takes its line and the chart gets
     // the remainder. Letting the chart claim h-full alongside the caption made
     // the pair overflow the card by exactly the caption's height.
-    <div className="grid h-full grid-cols-2 gap-2">
+    <div className="grid h-full grid-cols-1 gap-2 sm:grid-cols-[minmax(8rem,0.65fr)_minmax(0,1.35fr)]">
       <div className="flex min-h-0 flex-col rounded-lg border border-border p-2">
         <div className="mb-1 text-[10px] uppercase text-muted-foreground">Source</div>
-        <div className="min-h-0 flex-1">
-          <LineAreaChart data={timeSeries} seriesKeys={["revenue"]} showLegend={false} />
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-2">
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              aria-pressed={group.id === activeGroup.id}
+              onClick={() => selectGroup(group.id)}
+              className={cn(
+                "min-h-11 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                group.id === activeGroup.id
+                  ? "border-accent bg-accent/10 font-semibold"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {group.label}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="flex min-h-0 flex-col rounded-lg border border-border p-2 opacity-80">
-        <div className="mb-1 text-[10px] uppercase text-muted-foreground">Cross-filtered</div>
+      <div className="flex min-h-0 flex-col rounded-lg border border-border p-2">
+        <div className="mb-1 text-[10px] uppercase text-muted-foreground">
+          Cross-filtered · {activeGroup.label}
+        </div>
         <div className="min-h-0 flex-1">
-          <LineAreaChart data={timeSeries.slice(0, 4)} seriesKeys={["cost"]} showLegend={false} />
+          <LineAreaChart data={activeGroup.data} seriesKeys={["value"]} showLegend={false} />
         </div>
       </div>
     </div>
   );
 }
 
-export function DrillDownDemo() {
+const defaultDrillRoot: DrillLevel = {
+  id: "all",
+  label: "All regions",
+  value: 100,
+  children: [
+    {
+      id: "east",
+      label: "East",
+      value: 38,
+      children: [
+        { id: "store-12", label: "Store 12", value: 12 },
+        { id: "store-18", label: "Store 18", value: 10 },
+        { id: "other-east", label: "Other East", value: 16 },
+      ]},
+    { id: "west", label: "West", value: 34 },
+    { id: "central", label: "Central", value: 28 },
+  ]};
+
+export function DrillDownDemo({
+  root = defaultDrillRoot,
+  activePath,
+  defaultActivePath = [root.id],
+  onPathChange}: {
+  root?: DrillLevel;
+  activePath?: string[];
+  defaultActivePath?: string[];
+  onPathChange?: (path: string[]) => void;
+}) {
+  const [internalPath, setInternalPath] = React.useState(defaultActivePath);
+  const requestedPath = activePath ?? internalPath;
+  const resolved = [root];
+  let cursor = root;
+  for (const id of requestedPath.slice(1)) {
+    const next = cursor.children?.find((child) => child.id === id);
+    if (!next) break;
+    resolved.push(next);
+    cursor = next;
+  }
+  const setPath = (path: string[]) => {
+    if (activePath === undefined) setInternalPath(path);
+    onPathChange?.(path);
+  };
+  const current = resolved[resolved.length - 1];
+  const options = current.children ?? [];
+
   return (
-    <div className="flex h-full flex-col justify-center gap-2 p-3 text-sm">
-      <div className="text-xs text-muted-foreground">Path: All → Region → East → Store 12</div>
-      <div className="space-y-1">
-        {["All regions", "East", "Store 12"].map((level, i) => (
-          <div
-            key={level}
-            className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-            style={{ marginLeft: i * 12 }}
-          >
-            <span>{level}</span>
-            <span className="tabular-nums text-muted-foreground">{[100, 38, 12][i]}%</span>
-          </div>
+    <div className="flex h-full flex-col gap-3 p-3 text-sm">
+      <nav aria-label="Drill path" className="flex flex-wrap items-center gap-1 text-xs">
+        {resolved.map((level, index) => (
+          <React.Fragment key={level.id}>
+            {index ? <span aria-hidden="true">→</span> : null}
+            <button
+              type="button"
+              className="min-h-8 rounded px-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => setPath(resolved.slice(0, index + 1).map((item) => item.id))}
+              aria-current={index === resolved.length - 1 ? "page" : undefined}
+            >
+              {level.label}
+            </button>
+          </React.Fragment>
         ))}
+      </nav>
+      <div className="space-y-1 overflow-auto" aria-live="polite">
+        {options.length ? options.map((level) => (
+          <button
+            type="button"
+            key={level.id}
+            className="flex min-h-11 w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+            onClick={() => setPath([...resolved.map((item) => item.id), level.id])}
+          >
+            <span>{level.label}</span>
+            <span className="tabular-nums text-muted-foreground">{level.value}%</span>
+          </button>
+        )) : (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="font-medium">{current.label}</div>
+            <div className="text-muted-foreground">Leaf value: {current.value}%</div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export function VisualTooltipDemo() {
+  const [open, setOpen] = React.useState(false);
+  const tooltipId = React.useId();
   return (
     <div className="relative flex h-full items-center justify-center">
-      <div className="h-24 w-40 rounded-lg bg-[var(--chart-1)]/20" />
-      <div className="absolute right-8 top-8 w-44 rounded-lg border border-[var(--chart-tooltip-border)] bg-[var(--chart-tooltip-bg)] p-3 text-xs shadow-lg">
-        <div className="font-medium">May · Report tooltip</div>
-        <div className="mt-1 text-muted-foreground">Revenue $5.6k · +12% YoY</div>
-      </div>
+      <button
+        type="button"
+        className="h-24 w-40 rounded-lg bg-[var(--chart-1)]/20 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-describedby={open ? tooltipId : undefined}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onPointerEnter={() => setOpen(true)}
+        onPointerLeave={() => setOpen(false)}
+      >
+        Focus or hover this mark
+      </button>
+      {open ? (
+        <div
+          id={tooltipId}
+          role="status"
+          className="ce-chart-tooltip absolute right-8 top-8 w-44 rounded-[var(--radius)] border border-[var(--chart-tooltip-border)] bg-[var(--chart-tooltip-bg)] p-3 text-xs text-[var(--chart-tooltip-fg)] shadow-[var(--overlay-shadow)]"
+        >
+          <div className="font-medium">May · Report tooltip</div>
+          <div className="mt-1 text-muted-foreground">Revenue $5.6k · +12% YoY</div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -3,14 +3,13 @@
  * `html[data-palette="…"]` (see `src/app/palettes.css`). Charts already read
  * `var(--chart-*)`, so switching the attribute recolors every visual.
  *
- * `bg-time` is the only palette that lives in the base `:root` / `.dark` tokens
- * in `globals.css` — selecting it clears `data-palette`. Every other id
- * (including the default, Berry) must set the attribute.
+ * `neutral` lives in the base `:root` / `.dark` tokens in `globals.css` —
+ * selecting it clears `data-palette`. Every other id sets the attribute.
  */
 export type PaletteId =
+  | "neutral"
+  | "cobalt"
   | "berry"
-  | "bg-brand"
-  | "bg-time"
   | "ocean"
   | "sunset"
   | "forest"
@@ -26,30 +25,30 @@ export type Palette = {
   swatches: readonly [string, string, string, string, string];
 };
 
-export const DEFAULT_PALETTE: PaletteId = "berry";
+export const DEFAULT_PALETTE: PaletteId = "neutral";
 export const PALETTE_STORAGE_KEY = "ce-palette";
 
 /** Base tokens in globals.css — clear `data-palette` when this is active. */
-const BASE_TOKEN_PALETTE: PaletteId = "bg-time";
+const BASE_TOKEN_PALETTE: PaletteId = "neutral";
 
 export const PALETTES: readonly Palette[] = [
   {
-    id: "berry",
-    label: "Berry",
-    blurb: "Default · plum & rose",
-    swatches: ["#4c1d95", "#7c3aed", "#c026d3", "#db2777", "#e11d48"],
+    id: "neutral",
+    label: "Neutral",
+    blurb: "Balanced categorical",
+    swatches: ["#1d4ed8", "#0f766e", "#7c3aed", "#b45309", "#be123c"],
   },
   {
-    id: "bg-brand",
-    label: "B&G",
-    blurb: "Brasfield & Gorrie brand",
+    id: "cobalt",
+    label: "Cobalt",
+    blurb: "Deep navy & electric blue",
     swatches: ["#002070", "#0028f0", "#3888ff", "#00143c", "#b0ffff"],
   },
   {
-    id: "bg-time",
-    label: "B&G Time",
-    blurb: "Navy classic",
-    swatches: ["#0c2048", "#315fbb", "#1f6b4a", "#8a5010", "#9c343c"],
+    id: "berry",
+    label: "Berry",
+    blurb: "Plum & rose",
+    swatches: ["#4c1d95", "#7c3aed", "#c026d3", "#db2777", "#e11d48"],
   },
   {
     id: "ocean",
@@ -94,8 +93,8 @@ export function paletteById(id: PaletteId): Palette {
 /** Apply (or clear) the palette attribute on `<html>`. */
 export function applyPalette(id: PaletteId) {
   if (typeof document === "undefined") return;
-  // B&G Time is the bare token set in globals.css; every other palette —
-  // including Berry, the site default — is a data-palette override.
+  // Neutral is the bare token set in globals.css; every other palette is a
+  // data-palette override.
   if (id === BASE_TOKEN_PALETTE) {
     document.documentElement.removeAttribute("data-palette");
   } else {

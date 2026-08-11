@@ -1,0 +1,52 @@
+{
+  "name": "@rwcourson/chart-elements-registry",
+  "version": "0.1.0",
+  "description": "Typed registry metadata for Chart Elements component families.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SBOM.cdx.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test test/*.test.mjs",
+    "validate": "publint && node ../../scripts/run-attw.mjs --pack . --profile esm-only"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rwcourson/chart-elements.git",
+    "directory": "packages/registry"
+  },
+  "homepage": "https://chart-elements.vercel.app",
+  "bugs": {
+    "url": "https://github.com/rwcourson/chart-elements/issues"
+  },
+  "keywords": [
+    "chart-elements",
+    "data-visualization",
+    "registry",
+    "typescript"
+  ]
+}

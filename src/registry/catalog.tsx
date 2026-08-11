@@ -5,27 +5,32 @@
  * Source: scripts/generate-catalog.mjs · regenerate with `pnpm catalog`.
  */
 
-import type { ReactNode } from "react";
-import { AlluvialDiagram, AnimatedBarRace, AnimatedScatter, AnimatedTimeline, BandChart, BarColumnChart, BeeswarmPlot, BowTieDiagram, BoxPlot, BumpChart, ButterflyChart, CalendarHeatmap, CalendarVisual, CandlestickChart, ChordDiagram, CirclePacking, ClusterPlot, ColumnSparkline, ComboChart, ConfidenceBandPlot, ConfidenceIntervalChart, ConfusionMatrix, ConnectedDotPlot, ContourPlot, ControlChart, Correlogram, CoxcombChart, DataBar, DataTicker, DecisionTree, Dendrogram, DensityPlot, DependencyGraph, DivergingBarChart, DotDensityChart, DumbbellChart, ErrorBarPlot, EulerDiagram, FacetedPlot, FanChart, FeatureImportanceChart, FinancialWaterfall, FishboneDiagram, Flowchart, ForceDirectedNetwork, FrequencyPolygon, FunnelChart, HexbinPlot, HierarchicalEdgeBundling, Histogram, HorizonChart, IcicleChart, IconArray, ImageCarousel, ImageGrid, JitterPlot, JourneyMap, KPITicker, KagiChart, KernelDensityPlot, LikertChart, LineAreaChart, LineSparkline, LollipopChart, MarimekkoChart, MekkoChart, MosaicPlot, NetworkDiagram, NetworkPlot, NightingaleRose, OHLCChart, OrgChart, PCAPlot, PairPlot, ParallelCoordinates, ParallelSets, ParetoChart, PictogramChart, PieDonutChart, PolarAreaChart, PolarChart, PopulationPyramid, PrecisionRecallCurve, ProcessFlow, QQPlot, ROCCurve, RadarChart, RaincloudPlot, RangeAreaChart, RegressionPlot, RenkoChart, ResidualPlot, RibbonChart, RidgelinePlot, RoseChart, RunChart, SPCChart, SankeyDiagram, ScatterBubbleChart, ScatterplotMatrix, ScrollingText, SlopeChart, SpiderChart, SplineChart, StatisticalHeatmap, StepChart, StockChart, Streamgraph, StripPlot, SunburstChart, SurvivalCurve, TagCloud, TernaryPlot, TornadoChart, TreeDiagram, TreemapChart, VennDiagram, ViolinPlot, WaffleChart, WaterfallChart, WordCloud } from "@/components/charts";
-import { DataTable, MatrixTable } from "@/components/tables";
-import { BulletChart, DialGauge, KpiVisual, LegacyCard, LinearGauge, ModernCard, MultiCardLayout, MultiCategoryCards, MultiRowCard, ProgressBar, ProgressRing, RadialGauge, Scorecard, ThermometerGauge, TrafficLightKpi } from "@/components/cards";
-import { HexMap, TileGridMap } from "@/components/maps";
-import { AIDecompositionTree, AnomalyDetection, AnomalyOverlayDemo, DecompositionTree, ForecastDemo, KeyInfluencers, QAVisual, SmartNarrative, TopSegments } from "@/components/analytics";
-import { AdvancedDateSlicer, AdvancedHierarchySlicer, BetweenSlicer, ButtonGrid, ButtonList, ButtonSlicer, ChicletSlicer, ConditionalListSlicer, ContainsFilter, DateHierarchySlicer, DatePickerSlicer, DateRangeSlicer, DropdownSlicer, ExactTextFilter, FreeFormInput, GreaterThanSlicer, HierarchicalListSlicer, HierarchicalSlicer, IconButtons, ImageButtons, InputCollection, InputSlicer, LessThanSlicer, ListSlicer, MultiSelectButtons, NumericInputFilter, NumericRangeSlicer, NumericSlicer, PastedValueFilter, RelativeDateSlicer, RelativeTimeSlicer, SearchableListSlicer, SearchableSlicer, SingleSelectButtons, StandardSlicer, StartsWithFilter, TileSlicer, TimelineSlicer, VerticalListSlicer } from "@/components/slicers";
-import { ArrowShape, DynamicImage, DynamicText, ImageVisual, LineShape, OvalShape, RectangleShape, ReportShape, StaticImage, TextBox } from "@/components/shapes";
-import { ApplyAllSlicersButton, BackButton, BlankButton, BookmarkButton, BookmarkNavigator, ClearAllSlicersButton, DrillThroughButton, NavButton, PageNavigationButton, PageNavigator, QAButton, WebUrlButton } from "@/components/navigation";
-import { AverageLine, ConditionalDataColors, ConstantLine, CrossFilterDemo, DrillDownDemo, DynamicReferenceLine, DynamicTitle, ErrorBarsOverlay, FacetedCharts, MaxLine, MedianLine, MinLine, PercentileLine, SmallMultiples, TrellisCharts, TrendAnalysis, VisualTooltipDemo, XAxisReferenceLine, YAxisReferenceLine } from "@/components/overlays";
+import { lazy, type ReactNode } from "react";
+import { catalogManifest, type CatalogManifestId } from "./catalog-manifest";
+import type { CatalogManifestEntry } from "./catalog-types";
 import {
   kpiMetrics,
+  animatedScatterFrames,
+  animatedTimelineFrames,
+  barRaceFrames,
+  galleryImages,
+  gallerySafeHtml,
+  gallerySafeSvg,
+  scientificContourSpec,
+  mlFeatureResult,
   matrixRows,
   partToWhole,
   salesByRegion,
   scatterPoints,
   stackedSeries,
-  timeSeries,
   treemapData,
   funnelStages,
+  ganttTasks,
+  timelineEvents,
   waterfallData,
+  vegaBarSpec,
+  vegaLiteScatterSpec,
+  denebCompatibleSpec,
 } from "@/lib/sample-data";
 
 const tableColumns = [
@@ -62,2169 +67,599 @@ const matrixRowsWithImages = matrixRows.map((r, i) => ({
   img: demoThumb(i),
 }));
 
-export type CatalogEntry = {
-  id: string;
-  title: string;
-  category: string;
-  /** `"auto"` for control panels, which have a natural height. */
-  height?: number | "auto";
-  /**
-   * The component supplies its own card. The gallery labels it and renders it
-   * directly instead of nesting it in a second frame.
-   */
-  selfFramed?: boolean;
+const LazyAdvancedDateSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.AdvancedDateSlicer })));
+const LazyAdvancedGanttChart = lazy(() => import("@/components/charts/project-timeline-charts").then((module) => ({ default: module.AdvancedGanttChart })));
+const LazyAdvancedHierarchySlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.AdvancedHierarchySlicer })));
+const LazyAIDecompositionTree = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.AIDecompositionTree })));
+const LazyAlluvialDiagram = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.AlluvialDiagram })));
+const LazyAnimatedBarRace = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.AnimatedBarRace })));
+const LazyAnimatedScatter = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.AnimatedScatter })));
+const LazyAnimatedTimeline = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.AnimatedTimeline })));
+const LazyAnomalyDetection = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.AnomalyDetection })));
+const LazyAnomalyOverlayDemo = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.AnomalyOverlayDemo })));
+const LazyApplyAllSlicersButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.ApplyAllSlicersButton })));
+const LazyArrowShape = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.ArrowShape })));
+const LazyAverageLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.AverageLine })));
+const LazyBackButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.BackButton })));
+const LazyBandChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.BandChart })));
+const LazyBarColumnChart = lazy(() => import("@/components/charts/bar-column-chart").then((module) => ({ default: module.BarColumnChart })));
+const LazyBeeswarmPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.BeeswarmPlot })));
+const LazyBetweenSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.BetweenSlicer })));
+const LazyBlankButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.BlankButton })));
+const LazyBookmarkButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.BookmarkButton })));
+const LazyBookmarkNavigator = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.BookmarkNavigator })));
+const LazyBowTieDiagram = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.BowTieDiagram })));
+const LazyBoxPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.BoxPlot })));
+const LazyBulletChart = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.BulletChart })));
+const LazyBumpChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.BumpChart })));
+const LazyButterflyChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.ButterflyChart })));
+const LazyButtonGrid = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ButtonGrid })));
+const LazyButtonList = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ButtonList })));
+const LazyButtonSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ButtonSlicer })));
+const LazyCalendarHeatmap = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.CalendarHeatmap })));
+const LazyCalendarVisual = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.CalendarVisual })));
+const LazyCandlestickChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.CandlestickChart })));
+const LazyChicletSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ChicletSlicer })));
+const LazyChordDiagram = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.ChordDiagram })));
+const LazyCirclePacking = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.CirclePacking })));
+const LazyClearAllSlicersButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.ClearAllSlicersButton })));
+const LazyClusterPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ClusterPlot })));
+const LazyColumnSparkline = lazy(() => import("@/components/charts/sparklines").then((module) => ({ default: module.ColumnSparkline })));
+const LazyComboChart = lazy(() => import("@/components/charts/combo-chart").then((module) => ({ default: module.ComboChart })));
+const LazyConditionalDataColors = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.ConditionalDataColors })));
+const LazyConditionalListSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ConditionalListSlicer })));
+const LazyConfidenceBandPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ConfidenceBandPlot })));
+const LazyConfidenceIntervalChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ConfidenceIntervalChart })));
+const LazyConfusionMatrix = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ConfusionMatrix })));
+const LazyConnectedDotPlot = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.ConnectedDotPlot })));
+const LazyConstantLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.ConstantLine })));
+const LazyContainsFilter = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ContainsFilter })));
+const LazyContourPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ContourPlot })));
+const LazyControlChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ControlChart })));
+const LazyCorrelogram = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.Correlogram })));
+const LazyCoxcombChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.CoxcombChart })));
+const LazyCrossFilterDemo = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.CrossFilterDemo })));
+const LazyDataTable = lazy(() => import("@/components/tables/data-table").then((module) => ({ default: module.DataTable })));
+const LazyDataTicker = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.DataTicker })));
+const LazyDateHierarchySlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.DateHierarchySlicer })));
+const LazyDatePickerSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.DatePickerSlicer })));
+const LazyDateRangeSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.DateRangeSlicer })));
+const LazyDecisionTree = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.DecisionTree })));
+const LazyDecompositionTree = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.DecompositionTree })));
+const LazyDendrogram = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.Dendrogram })));
+const LazyDenebSpecRenderer = lazy(() => import("@/components/declarative/vega-visual").then((module) => ({ default: module.DenebSpecRenderer })));
+const LazyDensityPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.DensityPlot })));
+const LazyDependencyGraph = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.DependencyGraph })));
+const LazyDialGauge = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.DialGauge })));
+const LazyDivergingBarChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.DivergingBarChart })));
+const LazyDotDensityChart = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.DotDensityChart })));
+const LazyDrillDownDemo = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.DrillDownDemo })));
+const LazyDrillThroughButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.DrillThroughButton })));
+const LazyDropdownSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.DropdownSlicer })));
+const LazyDumbbellChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.DumbbellChart })));
+const LazyDynamicImage = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.DynamicImage })));
+const LazyDynamicReferenceLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.DynamicReferenceLine })));
+const LazyDynamicText = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.DynamicText })));
+const LazyDynamicTitle = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.DynamicTitle })));
+const LazyErrorBarPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ErrorBarPlot })));
+const LazyErrorBarsOverlay = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.ErrorBarsOverlay })));
+const LazyEulerDiagram = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.EulerDiagram })));
+const LazyExactTextFilter = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ExactTextFilter })));
+const LazyFacetedCharts = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.FacetedCharts })));
+const LazyFacetedPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.FacetedPlot })));
+const LazyFanChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.FanChart })));
+const LazyFeatureImportanceChart = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.FeatureImportanceChart })));
+const LazyFinancialWaterfall = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.FinancialWaterfall })));
+const LazyFishboneDiagram = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.FishboneDiagram })));
+const LazyFlowchart = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.Flowchart })));
+const LazyForceDirectedNetwork = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.ForceDirectedNetwork })));
+const LazyForecastDemo = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.ForecastDemo })));
+const LazyFreeFormInput = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.FreeFormInput })));
+const LazyFrequencyPolygon = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.FrequencyPolygon })));
+const LazyFunnelChart = lazy(() => import("@/components/charts/funnel-chart").then((module) => ({ default: module.FunnelChart })));
+const LazyGanttChart = lazy(() => import("@/components/charts/project-timeline-charts").then((module) => ({ default: module.GanttChart })));
+const LazyGreaterThanSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.GreaterThanSlicer })));
+const LazyHexbinPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.HexbinPlot })));
+const LazyHexMap = lazy(() => import("@/components/maps/schematic-maps").then((module) => ({ default: module.HexMap })));
+const LazyHierarchicalEdgeBundling = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.HierarchicalEdgeBundling })));
+const LazyHierarchicalListSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.HierarchicalListSlicer })));
+const LazyHierarchicalSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.HierarchicalSlicer })));
+const LazyHistogram = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.Histogram })));
+const LazyHorizonChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.HorizonChart })));
+const LazyIcicleChart = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.IcicleChart })));
+const LazyIconArray = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.IconArray })));
+const LazyIconButtons = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.IconButtons })));
+const LazyImageButtons = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ImageButtons })));
+const LazyImageCarousel = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ImageCarousel })));
+const LazyImageGrid = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ImageGrid })));
+const LazyImageVisual = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.ImageVisual })));
+const LazyInputCollection = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.InputCollection })));
+const LazyInputSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.InputSlicer })));
+const LazyJitterPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.JitterPlot })));
+const LazyJourneyMap = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.JourneyMap })));
+const LazyKagiChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.KagiChart })));
+const LazyKernelDensityPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.KernelDensityPlot })));
+const LazyKeyInfluencers = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.KeyInfluencers })));
+const LazyKPITicker = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.KPITicker })));
+const LazyKpiVisual = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.KpiVisual })));
+const LazyLegacyCard = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.LegacyCard })));
+const LazyLessThanSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.LessThanSlicer })));
+const LazyLikertChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.LikertChart })));
+const LazyLineAreaChart = lazy(() => import("@/components/charts/line-area-chart").then((module) => ({ default: module.LineAreaChart })));
+const LazyLinearGauge = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.LinearGauge })));
+const LazyLineShape = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.LineShape })));
+const LazyLineSparkline = lazy(() => import("@/components/charts/sparklines").then((module) => ({ default: module.LineSparkline })));
+const LazyListSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.ListSlicer })));
+const LazyLollipopChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.LollipopChart })));
+const LazyMachineLearningResultPlot = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.MachineLearningResultPlot })));
+const LazyMarimekkoChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.MarimekkoChart })));
+const LazyMatplotlibArtifact = lazy(() => import("@/components/content/safe-content-visuals").then((module) => ({ default: module.MatplotlibArtifact })));
+const LazyMatrixTable = lazy(() => import("@/components/tables/data-table").then((module) => ({ default: module.MatrixTable })));
+const LazyMaxLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.MaxLine })));
+const LazyMedianLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.MedianLine })));
+const LazyMekkoChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.MekkoChart })));
+const LazyMilestoneChart = lazy(() => import("@/components/charts/project-timeline-charts").then((module) => ({ default: module.MilestoneChart })));
+const LazyMinLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.MinLine })));
+const LazyModernCard = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.ModernCard })));
+const LazyMosaicPlot = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.MosaicPlot })));
+const LazyMultiCardLayout = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.MultiCardLayout })));
+const LazyMultiCategoryCards = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.MultiCategoryCards })));
+const LazyMultiRowCard = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.MultiRowCard })));
+const LazyMultiSelectButtons = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.MultiSelectButtons })));
+const LazyNavButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.NavButton })));
+const LazyNetworkDiagram = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.NetworkDiagram })));
+const LazyNetworkPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.NetworkPlot })));
+const LazyNightingaleRose = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.NightingaleRose })));
+const LazyNumericInputFilter = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.NumericInputFilter })));
+const LazyNumericRangeSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.NumericRangeSlicer })));
+const LazyNumericSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.NumericSlicer })));
+const LazyOHLCChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.OHLCChart })));
+const LazyOrgChart = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.OrgChart })));
+const LazyOvalShape = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.OvalShape })));
+const LazyPageNavigationButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.PageNavigationButton })));
+const LazyPageNavigator = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.PageNavigator })));
+const LazyPaginatedReport = lazy(() => import("@/components/reports/paginated-report").then((module) => ({ default: module.PaginatedReport })));
+const LazyPairPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.PairPlot })));
+const LazyParallelCoordinates = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.ParallelCoordinates })));
+const LazyParallelSets = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.ParallelSets })));
+const LazyParetoChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ParetoChart })));
+const LazyPastedValueFilter = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.PastedValueFilter })));
+const LazyPCAPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.PCAPlot })));
+const LazyPercentileLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.PercentileLine })));
+const LazyPictogramChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.PictogramChart })));
+const LazyPieDonutChart = lazy(() => import("@/components/charts/pie-donut-chart").then((module) => ({ default: module.PieDonutChart })));
+const LazyPolarAreaChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.PolarAreaChart })));
+const LazyPolarChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.PolarChart })));
+const LazyPopulationPyramid = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.PopulationPyramid })));
+const LazyPowerAppsVisual = lazy(() => import("@/components/integrations/application-adapters").then((module) => ({ default: module.PowerAppsVisual })));
+const LazyPowerAutomateVisual = lazy(() => import("@/components/integrations/application-adapters").then((module) => ({ default: module.PowerAutomateVisual })));
+const LazyPrecisionRecallCurve = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.PrecisionRecallCurve })));
+const LazyProcessFlow = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.ProcessFlow })));
+const LazyProgressBar = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.ProgressBar })));
+const LazyProgressRing = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.ProgressRing })));
+const LazyProjectRoadmap = lazy(() => import("@/components/charts/project-timeline-charts").then((module) => ({ default: module.ProjectRoadmap })));
+const LazyQAButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.QAButton })));
+const LazyQAEngineVisual = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.QAEngineVisual })));
+const LazyQAVisual = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.QAVisual })));
+const LazyQQPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.QQPlot })));
+const LazyRadarChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.RadarChart })));
+const LazyRadialGauge = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.RadialGauge })));
+const LazyRaincloudPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.RaincloudPlot })));
+const LazyRangeAreaChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.RangeAreaChart })));
+const LazyRectangleShape = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.RectangleShape })));
+const LazyRegressionPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.RegressionPlot })));
+const LazyRelativeDateSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.RelativeDateSlicer })));
+const LazyRelativeTimeSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.RelativeTimeSlicer })));
+const LazyRenkoChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.RenkoChart })));
+const LazyReportShape = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.ReportShape })));
+const LazyResidualPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ResidualPlot })));
+const LazyRibbonChart = lazy(() => import("@/components/charts/ribbon-chart").then((module) => ({ default: module.RibbonChart })));
+const LazyRidgelinePlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.RidgelinePlot })));
+const LazyRiskMatrix = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.RiskMatrix })));
+const LazyROCCurve = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ROCCurve })));
+const LazyRoseChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.RoseChart })));
+const LazyRunChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.RunChart })));
+const LazySafeHtmlVisual = lazy(() => import("@/components/content/safe-content-visuals").then((module) => ({ default: module.SafeHtmlVisual })));
+const LazySafeSvgVisual = lazy(() => import("@/components/content/safe-content-visuals").then((module) => ({ default: module.SafeSvgVisual })));
+const LazySankeyDiagram = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.SankeyDiagram })));
+const LazyScatterBubbleChart = lazy(() => import("@/components/charts/scatter-bubble-chart").then((module) => ({ default: module.ScatterBubbleChart })));
+const LazyScatterplotMatrix = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ScatterplotMatrix })));
+const LazyScientificSpecVisual = lazy(() => import("@/components/declarative/vega-visual").then((module) => ({ default: module.ScientificSpecVisual })));
+const LazyScorecard = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.Scorecard })));
+const LazyScrollingText = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.ScrollingText })));
+const LazySearchableListSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.SearchableListSlicer })));
+const LazySearchableSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.SearchableSlicer })));
+const LazySingleSelectButtons = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.SingleSelectButtons })));
+const LazySlopeChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.SlopeChart })));
+const LazySmallMultiples = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.SmallMultiples })));
+const LazySmartNarrative = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.SmartNarrative })));
+const LazySPCChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.SPCChart })));
+const LazySpiderChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.SpiderChart })));
+const LazySplineChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.SplineChart })));
+const LazyStandardSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.StandardSlicer })));
+const LazyStartsWithFilter = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.StartsWithFilter })));
+const LazyStaticImage = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.StaticImage })));
+const LazyStatisticalHeatmap = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.StatisticalHeatmap })));
+const LazyStepChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.StepChart })));
+const LazyStockChart = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.StockChart })));
+const LazyStreamgraph = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.Streamgraph })));
+const LazyStripPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.StripPlot })));
+const LazySunburstChart = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.SunburstChart })));
+const LazySurvivalCurve = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.SurvivalCurve })));
+const LazyTagCloud = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.TagCloud })));
+const LazyTernaryPlot = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.TernaryPlot })));
+const LazyTextBox = lazy(() => import("@/components/shapes/shape-visuals").then((module) => ({ default: module.TextBox })));
+const LazyThermometerGauge = lazy(() => import("@/components/cards/gauges").then((module) => ({ default: module.ThermometerGauge })));
+const LazyTileGridMap = lazy(() => import("@/components/maps/schematic-maps").then((module) => ({ default: module.TileGridMap })));
+const LazyTileSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.TileSlicer })));
+const LazyTimelineChart = lazy(() => import("@/components/charts/project-timeline-charts").then((module) => ({ default: module.TimelineChart })));
+const LazyTimelineSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.TimelineSlicer })));
+const LazyTopSegments = lazy(() => import("@/components/analytics/analytical-visuals").then((module) => ({ default: module.TopSegments })));
+const LazyTornadoChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.TornadoChart })));
+const LazyTrafficLightKpi = lazy(() => import("@/components/cards/kpi-cards").then((module) => ({ default: module.TrafficLightKpi })));
+const LazyTreeDiagram = lazy(() => import("@/components/charts/flow-hierarchy-charts").then((module) => ({ default: module.TreeDiagram })));
+const LazyTreemapChart = lazy(() => import("@/components/charts/treemap-chart").then((module) => ({ default: module.TreemapChart })));
+const LazyTrellisCharts = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.TrellisCharts })));
+const LazyTrendAnalysis = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.TrendAnalysis })));
+const LazyVegaChart = lazy(() => import("@/components/declarative/vega-visual").then((module) => ({ default: module.VegaChart })));
+const LazyVegaLiteChart = lazy(() => import("@/components/declarative/vega-visual").then((module) => ({ default: module.VegaLiteChart })));
+const LazyVennDiagram = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.VennDiagram })));
+const LazyVerticalListSlicer = lazy(() => import("@/components/slicers/slicers").then((module) => ({ default: module.VerticalListSlicer })));
+const LazyViolinPlot = lazy(() => import("@/components/charts/statistical-charts").then((module) => ({ default: module.ViolinPlot })));
+const LazyVisualTooltipDemo = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.VisualTooltipDemo })));
+const LazyWaffleChart = lazy(() => import("@/components/charts/polar-comparison-charts").then((module) => ({ default: module.WaffleChart })));
+const LazyWaterfallChart = lazy(() => import("@/components/charts/waterfall-chart").then((module) => ({ default: module.WaterfallChart })));
+const LazyWebUrlButton = lazy(() => import("@/components/navigation/nav-visuals").then((module) => ({ default: module.WebUrlButton })));
+const LazyWordCloud = lazy(() => import("@/components/charts/time-financial-charts").then((module) => ({ default: module.WordCloud })));
+const LazyXAxisReferenceLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.XAxisReferenceLine })));
+const LazyYAxisReferenceLine = lazy(() => import("@/components/overlays/analytical-overlays").then((module) => ({ default: module.YAxisReferenceLine })));
+
+export type CatalogEntry = CatalogManifestEntry & {
   render: () => ReactNode;
 };
 
-export const catalog: CatalogEntry[] = [
-  {
-    id: "clustered-bar-chart",
-    title: "Clustered bar chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="clustered-bar" />,
-  },
-  {
-    id: "stacked-bar-chart",
-    title: "Stacked bar chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar" />,
-  },
-  {
-    id: "100-stacked-bar-chart",
-    title: "100% stacked bar chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-bar" />,
-  },
-  {
-    id: "clustered-column-chart",
-    title: "Clustered column chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="clustered-column" />,
-  },
-  {
-    id: "stacked-column-chart",
-    title: "Stacked column chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-column" />,
-  },
-  {
-    id: "100-stacked-column-chart",
-    title: "100% stacked column chart",
-    category: "Bar and Column Charts",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-column" />,
-  },
-  {
-    id: "line-chart",
-    title: "Line chart",
-    category: "Line and Area Charts",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="line" />,
-  },
-  {
-    id: "area-chart",
-    title: "Area chart",
-    category: "Line and Area Charts",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="area" />,
-  },
-  {
-    id: "stacked-area-chart",
-    title: "Stacked area chart",
-    category: "Line and Area Charts",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="stacked-area" />,
-  },
-  {
-    id: "100-stacked-area-chart",
-    title: "100% stacked area chart",
-    category: "Line and Area Charts",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="percent-area" />,
-  },
-  {
-    id: "line-and-clustered-column-chart",
-    title: "Line and clustered column chart",
-    category: "Combination Charts",
-    render: () => <ComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="line-clustered-column" />,
-  },
-  {
-    id: "line-and-stacked-column-chart",
-    title: "Line and stacked column chart",
-    category: "Combination Charts",
-    render: () => <ComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="line-stacked-column" />,
-  },
-  {
-    id: "dual-axis-combo-chart-configurations",
-    title: "Dual-axis combo chart configurations",
-    category: "Combination Charts",
-    render: () => <ComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="dual-axis" />,
-  },
-  {
-    id: "waterfall-chart",
-    title: "Waterfall chart",
-    category: "Change and Ranking Charts",
-    render: () => <WaterfallChart data={waterfallData} />,
-  },
-  {
-    id: "ribbon-chart",
-    title: "Ribbon chart",
-    category: "Change and Ranking Charts",
-    render: () => <RibbonChart data={stackedSeries} seriesKeys={["product","service","other"]} />,
-  },
-  {
-    id: "pie-chart",
-    title: "Pie chart",
-    category: "Part-to-Whole and Process Charts",
-    render: () => <PieDonutChart data={partToWhole} variant="pie" />,
-  },
-  {
-    id: "donut-chart",
-    title: "Donut chart",
-    category: "Part-to-Whole and Process Charts",
-    render: () => <PieDonutChart data={partToWhole} variant="donut" innerLabel="100%" />,
-  },
-  {
-    id: "treemap",
-    title: "Treemap",
-    category: "Part-to-Whole and Process Charts",
-    render: () => <TreemapChart data={treemapData} />,
-  },
-  {
-    id: "funnel-chart",
-    title: "Funnel chart",
-    category: "Part-to-Whole and Process Charts",
-    render: () => <FunnelChart data={funnelStages} />,
-  },
-  {
-    id: "scatter-plot",
-    title: "Scatter plot",
-    category: "Relationship and Distribution Charts",
-    render: () => <ScatterBubbleChart data={scatterPoints} variant="scatter" />,
-  },
-  {
-    id: "bubble-chart",
-    title: "Bubble chart",
-    category: "Relationship and Distribution Charts",
-    render: () => <ScatterBubbleChart data={scatterPoints} variant="bubble" />,
-  },
-  {
-    id: "dot-plot",
-    title: "Dot plot",
-    category: "Relationship and Distribution Charts",
-    render: () => <ScatterBubbleChart data={scatterPoints} variant="dot-plot" />,
-  },
-  {
-    id: "table",
-    title: "Table",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} />,
-  },
-  {
-    id: "matrix",
-    title: "Matrix",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <MatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} />,
-  },
-  {
-    id: "hierarchical-matrix",
-    title: "Hierarchical matrix",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <MatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showSubtotals />,
-  },
-  {
-    id: "pivot-style-matrix",
-    title: "Pivot-style matrix",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <MatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showGrandTotal />,
-  },
-  {
-    id: "table-with-totals",
-    title: "Table with totals",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} showTotals />,
-  },
-  {
-    id: "matrix-with-subtotals",
-    title: "Matrix with subtotals",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <MatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showSubtotals />,
-  },
-  {
-    id: "matrix-with-grand-totals",
-    title: "Matrix with grand totals",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <MatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showGrandTotal />,
-  },
-  {
-    id: "table-matrix-with-conditional-background-colors",
-    title: "Table/matrix with conditional background colors",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} conditionalBackground />,
-  },
-  {
-    id: "table-matrix-with-conditional-font-colors",
-    title: "Table/matrix with conditional font colors",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} conditionalFont />,
-  },
-  {
-    id: "table-matrix-with-icons",
-    title: "Table/matrix with icons",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} showIcons />,
-  },
-  {
-    id: "table-matrix-with-data-bars",
-    title: "Table/matrix with data bars",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} showDataBars />,
-  },
-  {
-    id: "table-matrix-with-web-urls",
-    title: "Table/matrix with web URLs",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={[...tableColumns, {key:"url", label:"Link"}]} rows={matrixRowsWithLinks} linkKeys={["url"]} />,
-  },
-  {
-    id: "table-matrix-with-images",
-    title: "Table/matrix with images",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={[{key:"img",label:"Avatar"},{key:"region",label:"Region"},...tableColumns.slice(1)]} rows={matrixRowsWithImages} imageKeys={["img"]} />,
-  },
-  {
-    id: "table-matrix-with-sparklines",
-    title: "Table/matrix with sparklines",
-    category: "Tables and Matrix Visualizations",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} sparklineKey="trend" />,
-  },
-  {
-    id: "line-sparkline",
-    title: "Line sparkline",
-    category: "Tables and Matrix Visualizations",
-    render: () => <LineSparkline />,
-  },
-  {
-    id: "column-sparkline",
-    title: "Column sparkline",
-    category: "Tables and Matrix Visualizations",
-    render: () => <ColumnSparkline />,
-  },
-  {
-    id: "modern-card-visual-single-card-layout",
-    title: "Modern Card visual — Single-card layout",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <ModernCard metric={kpiMetrics[0]} withReference />,
-  },
-  {
-    id: "modern-card-visual-multi-card-layout",
-    title: "Modern Card visual — Multi-card layout",
-    category: "Cards, KPIs, and Gauges",
-    render: () => <MultiCardLayout metrics={kpiMetrics} />,
-  },
-  {
-    id: "modern-card-visual-multi-category-card-layout",
-    title: "Modern Card visual — Multi-category card layout",
-    category: "Cards, KPIs, and Gauges",
-    height: 350,
-    render: () => <MultiCategoryCards metrics={kpiMetrics.map((m,i)=>({...m, category: i<2?"Growth":"Quality"}))} />,
-  },
-  {
-    id: "modern-card-visual-card-with-reference-labels",
-    title: "Modern Card visual — Card with reference labels",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <ModernCard metric={kpiMetrics[0]} withReference />,
-  },
-  {
-    id: "modern-card-visual-card-with-images",
-    title: "Modern Card visual — Card with images",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <ModernCard metric={kpiMetrics[1]} withImage />,
-  },
-  {
-    id: "modern-card-visual-data-driven-card-images",
-    title: "Modern Card visual — Data-driven card images",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <ModernCard metric={{...kpiMetrics[0], imageUrl: demoThumb(1)}} withImage />,
-  },
-  {
-    id: "legacy-single-card",
-    title: "Legacy single Card",
-    category: "Cards, KPIs, and Gauges",
-    render: () => <LegacyCard metric={kpiMetrics[0]} />,
-  },
-  {
-    id: "legacy-multi-row-card",
-    title: "Legacy Multi-row Card",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <MultiRowCard metrics={kpiMetrics} />,
-  },
-  {
-    id: "kpi-visual",
-    title: "KPI visual",
-    category: "Cards, KPIs, and Gauges",
-    selfFramed: true,
-    render: () => <KpiVisual metric={kpiMetrics[0]} />,
-  },
-  {
-    id: "radial-gauge",
-    title: "Radial Gauge",
-    category: "Cards, KPIs, and Gauges",
-    render: () => <RadialGauge value={72} label="Attainment" ranges={[{to:50,color:"var(--chart-negative)"},{to:80,color:"var(--chart-warning)"},{to:100,color:"var(--chart-positive)"}]} />,
-  },
-  {
-    id: "goals-scorecard-visual",
-    title: "Goals / Scorecard visual",
-    category: "Cards, KPIs, and Gauges",
-    render: () => <Scorecard metrics={kpiMetrics.slice(0,3)} />,
-  },
-  {
-    id: "hex-maps",
-    title: "Hex maps",
-    category: "Geographic and Map Visualizations",
-    render: () => <HexMap />,
-  },
-  {
-    id: "tile-grid-maps",
-    title: "Tile / grid maps",
-    category: "Geographic and Map Visualizations",
-    render: () => <TileGridMap />,
-  },
-  {
-    id: "decomposition-tree",
-    title: "Decomposition Tree",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <DecompositionTree />,
-  },
-  {
-    id: "ai-assisted-decomposition-tree",
-    title: "AI-assisted Decomposition Tree",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <AIDecompositionTree />,
-  },
-  {
-    id: "key-influencers",
-    title: "Key Influencers",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <KeyInfluencers />,
-  },
-  {
-    id: "top-segments",
-    title: "Top Segments",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <TopSegments />,
-  },
-  {
-    id: "smart-narrative",
-    title: "Smart Narrative",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <SmartNarrative />,
-  },
-  {
-    id: "anomaly-detection",
-    title: "Anomaly Detection",
-    category: "AI and Analytical Visuals",
-    selfFramed: true,
-    render: () => <AnomalyDetection />,
-  },
-  {
-    id: "q-a-visual",
-    title: "Q&A visual",
-    category: "Natural-Language Visualization",
-    selfFramed: true,
-    render: () => <QAVisual />,
-  },
-  {
-    id: "other-compatible-visuals-selected-by-the-q-a-engine",
-    title: "Other compatible visuals selected by the Q&A engine",
-    category: "Natural-Language Visualization",
-    selfFramed: true,
-    render: () => <QAVisual />,
-  },
-  {
-    id: "standard-slicer",
-    title: "Standard Slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <StandardSlicer />,
-  },
-  {
-    id: "button-slicer",
-    title: "Button Slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ButtonSlicer />,
-  },
-  {
-    id: "list-slicer",
-    title: "List Slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ListSlicer />,
-  },
-  {
-    id: "input-slicer",
-    title: "Input Slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <InputSlicer />,
-  },
-  {
-    id: "vertical-list-slicer",
-    title: "Vertical list slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <VerticalListSlicer />,
-  },
-  {
-    id: "dropdown-slicer",
-    title: "Dropdown slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <DropdownSlicer />,
-  },
-  {
-    id: "tile-slicer",
-    title: "Tile slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <TileSlicer />,
-  },
-  {
-    id: "hierarchical-slicer",
-    title: "Hierarchical slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <HierarchicalSlicer />,
-  },
-  {
-    id: "searchable-slicer",
-    title: "Searchable slicer",
-    category: "Slicer Visualizations",
-    height: 250,
-    render: () => <SearchableSlicer />,
-  },
-  {
-    id: "numeric-slicer",
-    title: "Numeric slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <NumericSlicer />,
-  },
-  {
-    id: "numeric-range-slicer",
-    title: "Numeric range slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <NumericRangeSlicer />,
-  },
-  {
-    id: "between-slicer",
-    title: "Between slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <BetweenSlicer />,
-  },
-  {
-    id: "greater-than-after-slicer",
-    title: "Greater-than / After slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <GreaterThanSlicer />,
-  },
-  {
-    id: "less-than-before-slicer",
-    title: "Less-than / Before slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <LessThanSlicer />,
-  },
-  {
-    id: "date-range-slicer",
-    title: "Date range slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <DateRangeSlicer />,
-  },
-  {
-    id: "date-hierarchy-slicer",
-    title: "Date hierarchy slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <DateHierarchySlicer />,
-  },
-  {
-    id: "relative-date-slicer",
-    title: "Relative date slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <RelativeDateSlicer />,
-  },
-  {
-    id: "relative-time-slicer",
-    title: "Relative time slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <RelativeTimeSlicer />,
-  },
-  {
-    id: "date-picker",
-    title: "Date picker",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <DatePickerSlicer />,
-  },
-  {
-    id: "single-select-buttons",
-    title: "Single-select buttons",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <SingleSelectButtons />,
-  },
-  {
-    id: "multi-select-buttons",
-    title: "Multi-select buttons",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <MultiSelectButtons />,
-  },
-  {
-    id: "button-grid",
-    title: "Button grid",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ButtonGrid />,
-  },
-  {
-    id: "button-list",
-    title: "Button list",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ButtonList />,
-  },
-  {
-    id: "image-buttons",
-    title: "Image buttons",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ImageButtons />,
-  },
-  {
-    id: "icon-buttons",
-    title: "Icon buttons",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <IconButtons />,
-  },
-  {
-    id: "searchable-list",
-    title: "Searchable list",
-    category: "Slicer Visualizations",
-    height: 250,
-    render: () => <SearchableListSlicer />,
-  },
-  {
-    id: "hierarchical-list",
-    title: "Hierarchical list",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <HierarchicalListSlicer />,
-  },
-  {
-    id: "conditionally-formatted-list",
-    title: "Conditionally formatted list",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ConditionalListSlicer />,
-  },
-  {
-    id: "exact-text-filter",
-    title: "Exact-text filter",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ExactTextFilter />,
-  },
-  {
-    id: "contains-filter",
-    title: "Contains filter",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ContainsFilter />,
-  },
-  {
-    id: "starts-with-filter",
-    title: "Starts-with filter",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <StartsWithFilter />,
-  },
-  {
-    id: "numeric-input-filter",
-    title: "Numeric-input filter",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <NumericInputFilter />,
-  },
-  {
-    id: "free-form-input",
-    title: "Free-form input",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <FreeFormInput />,
-  },
-  {
-    id: "pasted-value-filtering",
-    title: "Pasted-value filtering",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <PastedValueFilter />,
-  },
-  {
-    id: "input-collection-for-write-back-translytical-scenarios",
-    title: "Input collection for write-back / translytical scenarios",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <InputCollection />,
-  },
-  {
-    id: "chiclet-slicer",
-    title: "Chiclet slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <ChicletSlicer />,
-  },
-  {
-    id: "timeline-slicer",
-    title: "Timeline slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    render: () => <TimelineSlicer />,
-  },
-  {
-    id: "advanced-date-slicer",
-    title: "Advanced date slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    selfFramed: true,
-    render: () => <AdvancedDateSlicer />,
-  },
-  {
-    id: "advanced-hierarchy-slicer",
-    title: "Advanced hierarchy slicer",
-    category: "Slicer Visualizations",
-    height: "auto",
-    selfFramed: true,
-    render: () => <AdvancedHierarchySlicer />,
-  },
-  {
-    id: "image-visual",
-    title: "Image visual",
-    category: "Text, Images, and Shapes",
-    height: 240,
-    render: () => <ImageVisual />,
-  },
-  {
-    id: "static-image",
-    title: "Static image",
-    category: "Text, Images, and Shapes",
-    height: 200,
-    render: () => <StaticImage />,
-  },
-  {
-    id: "dynamic-data-driven-image",
-    title: "Dynamic / data-driven image",
-    category: "Text, Images, and Shapes",
-    height: 200,
-    render: () => <DynamicImage />,
-  },
-  {
-    id: "text-box",
-    title: "Text box",
-    category: "Text, Images, and Shapes",
-    height: "auto",
-    render: () => <TextBox />,
-  },
-  {
-    id: "dynamic-data-bound-text",
-    title: "Dynamic / data-bound text",
-    category: "Text, Images, and Shapes",
-    height: "auto",
-    render: () => <DynamicText />,
-  },
-  {
-    id: "rectangle",
-    title: "Rectangle",
-    category: "Text, Images, and Shapes",
-    height: 180,
-    render: () => <RectangleShape />,
-  },
-  {
-    id: "oval",
-    title: "Oval",
-    category: "Text, Images, and Shapes",
-    height: 180,
-    render: () => <OvalShape />,
-  },
-  {
-    id: "line",
-    title: "Line",
-    category: "Text, Images, and Shapes",
-    height: 180,
-    render: () => <LineShape />,
-  },
-  {
-    id: "arrow",
-    title: "Arrow",
-    category: "Text, Images, and Shapes",
-    height: 180,
-    render: () => <ArrowShape />,
-  },
-  {
-    id: "other-report-shapes",
-    title: "Other report shapes",
-    category: "Text, Images, and Shapes",
-    height: 180,
-    render: () => <ReportShape />,
-  },
-  {
-    id: "button",
-    title: "Button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <NavButton />,
-  },
-  {
-    id: "blank-button",
-    title: "Blank button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <BlankButton />,
-  },
-  {
-    id: "back-button",
-    title: "Back button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <BackButton />,
-  },
-  {
-    id: "bookmark-button",
-    title: "Bookmark button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <BookmarkButton />,
-  },
-  {
-    id: "drill-through-button",
-    title: "Drill-through button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <DrillThroughButton />,
-  },
-  {
-    id: "page-navigation-button",
-    title: "Page navigation button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <PageNavigationButton />,
-  },
-  {
-    id: "web-url-button",
-    title: "Web URL button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <WebUrlButton />,
-  },
-  {
-    id: "q-a-button",
-    title: "Q&A button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <QAButton />,
-  },
-  {
-    id: "apply-all-slicers-button",
-    title: "Apply-all-slicers button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <ApplyAllSlicersButton />,
-  },
-  {
-    id: "clear-all-slicers-button",
-    title: "Clear-all-slicers button",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    render: () => <ClearAllSlicersButton />,
-  },
-  {
-    id: "page-navigator",
-    title: "Page Navigator",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    selfFramed: true,
-    render: () => <PageNavigator />,
-  },
-  {
-    id: "bookmark-navigator",
-    title: "Bookmark Navigator",
-    category: "Navigation and Interactivity Visuals",
-    height: "auto",
-    selfFramed: true,
-    render: () => <BookmarkNavigator />,
-  },
-  {
-    id: "power-apps-visual",
-    title: "Power Apps visual",
-    category: "Embedded and Application Visuals",
-    height: "auto",
-    render: () => <InputCollection />,
-  },
-  {
-    id: "power-automate-visual",
-    title: "Power Automate visual",
-    category: "Embedded and Application Visuals",
-    render: () => <ProcessFlow />,
-  },
-  {
-    id: "histogram",
-    title: "Histogram",
-    category: "Statistical & Scientific Charts",
-    render: () => <Histogram />,
-  },
-  {
-    id: "density-plot",
-    title: "Density plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <DensityPlot />,
-  },
-  {
-    id: "kernel-density-plot",
-    title: "Kernel-density plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <KernelDensityPlot />,
-  },
-  {
-    id: "box-plot",
-    title: "Box plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <BoxPlot />,
-  },
-  {
-    id: "violin-plot",
-    title: "Violin plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <ViolinPlot />,
-  },
-  {
-    id: "ridgeline-plot",
-    title: "Ridgeline plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <RidgelinePlot />,
-  },
-  {
-    id: "hexbin-plot",
-    title: "Hexbin plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <HexbinPlot />,
-  },
-  {
-    id: "correlogram",
-    title: "Correlogram",
-    category: "Statistical & Scientific Charts",
-    render: () => <Correlogram />,
-  },
-  {
-    id: "scatterplot-matrix",
-    title: "Scatterplot matrix",
-    category: "Statistical & Scientific Charts",
-    render: () => <ScatterplotMatrix />,
-  },
-  {
-    id: "statistical-heatmap",
-    title: "Statistical heatmap",
-    category: "Statistical & Scientific Charts",
-    render: () => <StatisticalHeatmap />,
-  },
-  {
-    id: "dendrogram",
-    title: "Dendrogram",
-    category: "Statistical & Scientific Charts",
-    render: () => <Dendrogram />,
-  },
-  {
-    id: "hierarchical-clustering-plot",
-    title: "Hierarchical clustering plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <Dendrogram />,
-  },
-  {
-    id: "survival-curve",
-    title: "Survival curve",
-    category: "Statistical & Scientific Charts",
-    render: () => <SurvivalCurve />,
-  },
-  {
-    id: "roc-curve",
-    title: "ROC curve",
-    category: "Statistical & Scientific Charts",
-    render: () => <ROCCurve />,
-  },
-  {
-    id: "precision-recall-curve",
-    title: "Precision-recall curve",
-    category: "Statistical & Scientific Charts",
-    render: () => <PrecisionRecallCurve />,
-  },
-  {
-    id: "qq-plot",
-    title: "QQ plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <QQPlot />,
-  },
-  {
-    id: "residual-plot",
-    title: "Residual plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <ResidualPlot />,
-  },
-  {
-    id: "regression-plot",
-    title: "Regression plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <RegressionPlot />,
-  },
-  {
-    id: "contour-plot",
-    title: "Contour plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <ContourPlot />,
-  },
-  {
-    id: "faceted-plots",
-    title: "Faceted plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <FacetedPlot />,
-  },
-  {
-    id: "confidence-band-plots",
-    title: "Confidence-band plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <ConfidenceBandPlot />,
-  },
-  {
-    id: "network-plots",
-    title: "Network plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <NetworkPlot />,
-  },
-  {
-    id: "specialized-scientific-plots",
-    title: "Specialized scientific plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <ContourPlot />,
-  },
-  {
-    id: "kde-plot",
-    title: "KDE plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <KernelDensityPlot />,
-  },
-  {
-    id: "heatmap",
-    title: "Heatmap",
-    category: "Statistical & Scientific Charts",
-    render: () => <StatisticalHeatmap />,
-  },
-  {
-    id: "correlation-matrix",
-    title: "Correlation matrix",
-    category: "Statistical & Scientific Charts",
-    render: () => <Correlogram />,
-  },
-  {
-    id: "pair-plot",
-    title: "Pair plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <PairPlot />,
-  },
-  {
-    id: "regression-chart",
-    title: "Regression chart",
-    category: "Statistical & Scientific Charts",
-    render: () => <RegressionPlot />,
-  },
-  {
-    id: "contour-chart",
-    title: "Contour chart",
-    category: "Statistical & Scientific Charts",
-    render: () => <ContourPlot />,
-  },
-  {
-    id: "error-bar-plot",
-    title: "Error-bar plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <ErrorBarPlot />,
-  },
-  {
-    id: "statistical-distribution-plot",
-    title: "Statistical distribution plot",
-    category: "Statistical & Scientific Charts",
-    render: () => <DensityPlot />,
-  },
-  {
-    id: "time-series-analysis-chart",
-    title: "Time-series analysis chart",
-    category: "Statistical & Scientific Charts",
-    render: () => <TrendAnalysis />,
-  },
-  {
-    id: "forecast-visualization",
-    title: "Forecast visualization",
-    category: "Statistical & Scientific Charts",
-    selfFramed: true,
-    render: () => <ForecastDemo />,
-  },
-  {
-    id: "machine-learning-result-plots",
-    title: "Machine-learning result plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <FeatureImportanceChart />,
-  },
-  {
-    id: "cluster-plots",
-    title: "Cluster plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <ClusterPlot />,
-  },
-  {
-    id: "pca-plots",
-    title: "PCA plots",
-    category: "Statistical & Scientific Charts",
-    render: () => <PCAPlot />,
-  },
-  {
-    id: "confusion-matrix",
-    title: "Confusion matrix",
-    category: "Statistical & Scientific Charts",
-    render: () => <ConfusionMatrix />,
-  },
-  {
-    id: "feature-importance-chart",
-    title: "Feature-importance chart",
-    category: "Statistical & Scientific Charts",
-    render: () => <FeatureImportanceChart />,
-  },
-  {
-    id: "precision-recall-chart",
-    title: "Precision-recall chart",
-    category: "Statistical & Scientific Charts",
-    render: () => <PrecisionRecallCurve />,
-  },
-  {
-    id: "custom-matplotlib-visualizations",
-    title: "Custom Matplotlib visualizations",
-    category: "Statistical & Scientific Charts",
-    render: () => <FacetedPlot />,
-  },
-  {
-    id: "gantt-chart",
-    title: "Gantt chart",
-    category: "Project and Timeline Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "advanced-gantt-chart",
-    title: "Advanced Gantt chart",
-    category: "Project and Timeline Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "timeline-chart",
-    title: "Timeline chart",
-    category: "Project and Timeline Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "milestone-chart",
-    title: "Milestone chart",
-    category: "Project and Timeline Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "project-roadmap",
-    title: "Project roadmap",
-    category: "Project and Timeline Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "sankey-diagram",
-    title: "Sankey diagram",
-    category: "Flow and Network Visuals",
-    render: () => <SankeyDiagram />,
-  },
-  {
-    id: "alluvial-diagram",
-    title: "Alluvial diagram",
-    category: "Flow and Network Visuals",
-    render: () => <AlluvialDiagram />,
-  },
-  {
-    id: "chord-diagram",
-    title: "Chord diagram",
-    category: "Flow and Network Visuals",
-    render: () => <ChordDiagram />,
-  },
-  {
-    id: "network-diagram",
-    title: "Network diagram",
-    category: "Flow and Network Visuals",
-    render: () => <NetworkDiagram />,
-  },
-  {
-    id: "force-directed-network",
-    title: "Force-directed network",
-    category: "Flow and Network Visuals",
-    render: () => <ForceDirectedNetwork />,
-  },
-  {
-    id: "dependency-graph",
-    title: "Dependency graph",
-    category: "Flow and Network Visuals",
-    render: () => <DependencyGraph />,
-  },
-  {
-    id: "organizational-chart",
-    title: "Organizational chart",
-    category: "Flow and Network Visuals",
-    render: () => <OrgChart />,
-  },
-  {
-    id: "process-flow",
-    title: "Process flow",
-    category: "Flow and Network Visuals",
-    render: () => <ProcessFlow />,
-  },
-  {
-    id: "flowchart",
-    title: "Flowchart",
-    category: "Flow and Network Visuals",
-    render: () => <Flowchart />,
-  },
-  {
-    id: "journey-map",
-    title: "Journey map",
-    category: "Flow and Network Visuals",
-    render: () => <JourneyMap />,
-  },
-  {
-    id: "decision-tree",
-    title: "Decision tree",
-    category: "Flow and Network Visuals",
-    render: () => <DecisionTree />,
-  },
-  {
-    id: "tree-diagram",
-    title: "Tree diagram",
-    category: "Flow and Network Visuals",
-    render: () => <TreeDiagram />,
-  },
-  {
-    id: "sunburst-chart",
-    title: "Sunburst chart",
-    category: "Hierarchy Visuals",
-    render: () => <SunburstChart />,
-  },
-  {
-    id: "icicle-chart",
-    title: "Icicle chart",
-    category: "Hierarchy Visuals",
-    render: () => <IcicleChart />,
-  },
-  {
-    id: "circle-packing",
-    title: "Circle packing",
-    category: "Hierarchy Visuals",
-    render: () => <CirclePacking />,
-  },
-  {
-    id: "hierarchical-edge-bundling",
-    title: "Hierarchical edge bundling",
-    category: "Hierarchy Visuals",
-    render: () => <HierarchicalEdgeBundling />,
-  },
-  {
-    id: "radar-chart",
-    title: "Radar chart",
-    category: "Polar and Radial Visuals",
-    render: () => <RadarChart />,
-  },
-  {
-    id: "spider-chart",
-    title: "Spider chart",
-    category: "Polar and Radial Visuals",
-    render: () => <SpiderChart />,
-  },
-  {
-    id: "polar-chart",
-    title: "Polar chart",
-    category: "Polar and Radial Visuals",
-    render: () => <PolarChart />,
-  },
-  {
-    id: "rose-chart",
-    title: "Rose chart",
-    category: "Polar and Radial Visuals",
-    render: () => <RoseChart />,
-  },
-  {
-    id: "coxcomb-chart",
-    title: "Coxcomb chart",
-    category: "Polar and Radial Visuals",
-    render: () => <CoxcombChart />,
-  },
-  {
-    id: "nightingale-rose-chart",
-    title: "Nightingale rose chart",
-    category: "Polar and Radial Visuals",
-    render: () => <NightingaleRose />,
-  },
-  {
-    id: "polar-area-chart",
-    title: "Polar area chart",
-    category: "Polar and Radial Visuals",
-    render: () => <PolarAreaChart />,
-  },
-  {
-    id: "bullet-chart",
-    title: "Bullet chart",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <BulletChart value={72} target={80} label="Attainment" />,
-  },
-  {
-    id: "linear-gauge",
-    title: "Linear gauge",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <LinearGauge value={64} label="Utilization" />,
-  },
-  {
-    id: "thermometer-gauge",
-    title: "Thermometer gauge",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <ThermometerGauge value={78} />,
-  },
-  {
-    id: "dial-gauge",
-    title: "Dial gauge",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <DialGauge value={66} label="Score" />,
-  },
-  {
-    id: "speedometer",
-    title: "Speedometer",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <DialGauge value={82} label="Velocity" />,
-  },
-  {
-    id: "advanced-kpi",
-    title: "Advanced KPI",
-    category: "KPI and Gauge Visuals (Extended)",
-    selfFramed: true,
-    render: () => <KpiVisual metric={kpiMetrics[0]} />,
-  },
-  {
-    id: "traffic-light-kpi",
-    title: "Traffic-light KPI",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <TrafficLightKpi metric={kpiMetrics[0]} />,
-  },
-  {
-    id: "progress-bar",
-    title: "Progress bar",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <ProgressBar value={0.68} label="Pipeline" />,
-  },
-  {
-    id: "progress-ring",
-    title: "Progress ring",
-    category: "KPI and Gauge Visuals (Extended)",
-    render: () => <ProgressRing value={0.74} label="Complete" />,
-  },
-  {
-    id: "waffle-chart",
-    title: "Waffle chart",
-    category: "Infographic Visuals",
-    render: () => <WaffleChart />,
-  },
-  {
-    id: "pictogram-chart",
-    title: "Pictogram chart",
-    category: "Infographic Visuals",
-    render: () => <PictogramChart />,
-  },
-  {
-    id: "icon-array",
-    title: "Icon array",
-    category: "Infographic Visuals",
-    render: () => <IconArray />,
-  },
-  {
-    id: "infographic-chart",
-    title: "Infographic chart",
-    category: "Infographic Visuals",
-    render: () => <WaffleChart />,
-  },
-  {
-    id: "lollipop-chart",
-    title: "Lollipop chart",
-    category: "Comparison Visuals",
-    render: () => <LollipopChart />,
-  },
-  {
-    id: "dumbbell-chart",
-    title: "Dumbbell chart",
-    category: "Comparison Visuals",
-    render: () => <DumbbellChart />,
-  },
-  {
-    id: "connected-dot-plot",
-    title: "Connected-dot plot",
-    category: "Comparison Visuals",
-    render: () => <ConnectedDotPlot />,
-  },
-  {
-    id: "slope-chart",
-    title: "Slope chart",
-    category: "Comparison Visuals",
-    render: () => <SlopeChart />,
-  },
-  {
-    id: "bump-chart",
-    title: "Bump chart",
-    category: "Comparison Visuals",
-    render: () => <BumpChart />,
-  },
-  {
-    id: "butterfly-chart",
-    title: "Butterfly chart",
-    category: "Comparison Visuals",
-    render: () => <ButterflyChart />,
-  },
-  {
-    id: "tornado-chart",
-    title: "Tornado chart",
-    category: "Comparison Visuals",
-    render: () => <TornadoChart />,
-  },
-  {
-    id: "population-pyramid",
-    title: "Population pyramid",
-    category: "Comparison Visuals",
-    render: () => <PopulationPyramid />,
-  },
-  {
-    id: "diverging-bar-chart",
-    title: "Diverging bar chart",
-    category: "Comparison Visuals",
-    render: () => <DivergingBarChart />,
-  },
-  {
-    id: "likert-chart",
-    title: "Likert chart",
-    category: "Comparison Visuals",
-    render: () => <LikertChart />,
-  },
-  {
-    id: "dot-density-chart",
-    title: "Dot-density chart",
-    category: "Distribution Visuals",
-    render: () => <DotDensityChart />,
-  },
-  {
-    id: "strip-plot",
-    title: "Strip plot",
-    category: "Distribution Visuals",
-    render: () => <StripPlot />,
-  },
-  {
-    id: "beeswarm-plot",
-    title: "Beeswarm plot",
-    category: "Distribution Visuals",
-    render: () => <BeeswarmPlot />,
-  },
-  {
-    id: "jitter-plot",
-    title: "Jitter plot",
-    category: "Distribution Visuals",
-    render: () => <JitterPlot />,
-  },
-  {
-    id: "box-and-whisker-plot",
-    title: "Box-and-whisker plot",
-    category: "Distribution Visuals",
-    render: () => <BoxPlot />,
-  },
-  {
-    id: "raincloud-plot",
-    title: "Raincloud plot",
-    category: "Distribution Visuals",
-    render: () => <RaincloudPlot />,
-  },
-  {
-    id: "frequency-polygon",
-    title: "Frequency polygon",
-    category: "Distribution Visuals",
-    render: () => <FrequencyPolygon />,
-  },
-  {
-    id: "ridgeline-chart",
-    title: "Ridgeline chart",
-    category: "Distribution Visuals",
-    render: () => <RidgelinePlot />,
-  },
-  {
-    id: "2d-density-plot",
-    title: "2D density plot",
-    category: "Distribution Visuals",
-    render: () => <ContourPlot />,
-  },
-  {
-    id: "calendar-heatmap",
-    title: "Calendar heatmap",
-    category: "Heatmap and Matrix Visuals",
-    render: () => <CalendarHeatmap />,
-  },
-  {
-    id: "matrix-heatmap",
-    title: "Matrix heatmap",
-    category: "Heatmap and Matrix Visuals",
-    render: () => <StatisticalHeatmap />,
-  },
-  {
-    id: "correlation-heatmap",
-    title: "Correlation heatmap",
-    category: "Heatmap and Matrix Visuals",
-    render: () => <Correlogram />,
-  },
-  {
-    id: "risk-matrix",
-    title: "Risk matrix",
-    category: "Heatmap and Matrix Visuals",
-    render: () => <ConfusionMatrix />,
-  },
-  {
-    id: "quadrant-chart",
-    title: "Quadrant chart",
-    category: "Heatmap and Matrix Visuals",
-    render: () => <ScatterBubbleChart data={scatterPoints} variant="scatter" />,
-  },
-  {
-    id: "mekko-chart",
-    title: "Mekko chart",
-    category: "Composition Visuals",
-    render: () => <MekkoChart />,
-  },
-  {
-    id: "marimekko-chart",
-    title: "Marimekko chart",
-    category: "Composition Visuals",
-    render: () => <MarimekkoChart />,
-  },
-  {
-    id: "mosaic-plot",
-    title: "Mosaic plot",
-    category: "Composition Visuals",
-    render: () => <MosaicPlot />,
-  },
-  {
-    id: "parallel-coordinates-plot",
-    title: "Parallel coordinates plot",
-    category: "Multivariate Visuals",
-    render: () => <ParallelCoordinates />,
-  },
-  {
-    id: "parallel-sets",
-    title: "Parallel sets",
-    category: "Multivariate Visuals",
-    render: () => <ParallelSets />,
-  },
-  {
-    id: "ternary-plot",
-    title: "Ternary plot",
-    category: "Multivariate Visuals",
-    render: () => <TernaryPlot />,
-  },
-  {
-    id: "streamgraph",
-    title: "Streamgraph",
-    category: "Time-Series and Range Visuals",
-    render: () => <Streamgraph />,
-  },
-  {
-    id: "horizon-chart",
-    title: "Horizon chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <HorizonChart />,
-  },
-  {
-    id: "step-chart",
-    title: "Step chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <StepChart />,
-  },
-  {
-    id: "spline-chart",
-    title: "Spline chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <SplineChart />,
-  },
-  {
-    id: "range-area-chart",
-    title: "Range area chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <RangeAreaChart />,
-  },
-  {
-    id: "band-chart",
-    title: "Band chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <BandChart />,
-  },
-  {
-    id: "fan-chart",
-    title: "Fan chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <FanChart />,
-  },
-  {
-    id: "confidence-interval-chart",
-    title: "Confidence-interval chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <ConfidenceIntervalChart />,
-  },
-  {
-    id: "error-bar-chart",
-    title: "Error-bar chart",
-    category: "Time-Series and Range Visuals",
-    render: () => <ErrorBarPlot />,
-  },
-  {
-    id: "candlestick-chart",
-    title: "Candlestick chart",
-    category: "Financial Visuals",
-    render: () => <CandlestickChart />,
-  },
-  {
-    id: "ohlc-chart",
-    title: "OHLC chart",
-    category: "Financial Visuals",
-    render: () => <OHLCChart />,
-  },
-  {
-    id: "stock-chart",
-    title: "Stock chart",
-    category: "Financial Visuals",
-    render: () => <StockChart />,
-  },
-  {
-    id: "renko-chart",
-    title: "Renko chart",
-    category: "Financial Visuals",
-    render: () => <RenkoChart />,
-  },
-  {
-    id: "kagi-chart",
-    title: "Kagi chart",
-    category: "Financial Visuals",
-    render: () => <KagiChart />,
-  },
-  {
-    id: "financial-waterfall",
-    title: "Financial waterfall",
-    category: "Financial Visuals",
-    render: () => <FinancialWaterfall />,
-  },
-  {
-    id: "pareto-chart",
-    title: "Pareto chart",
-    category: "Quality and Process Visuals",
-    render: () => <ParetoChart />,
-  },
-  {
-    id: "control-chart",
-    title: "Control chart",
-    category: "Quality and Process Visuals",
-    render: () => <ControlChart />,
-  },
-  {
-    id: "spc-chart",
-    title: "SPC chart",
-    category: "Quality and Process Visuals",
-    render: () => <SPCChart />,
-  },
-  {
-    id: "run-chart",
-    title: "Run chart",
-    category: "Quality and Process Visuals",
-    render: () => <RunChart />,
-  },
-  {
-    id: "fishbone-ishikawa-diagram",
-    title: "Fishbone / Ishikawa diagram",
-    category: "Quality and Process Visuals",
-    render: () => <FishboneDiagram />,
-  },
-  {
-    id: "bow-tie-diagram",
-    title: "Bow-tie diagram",
-    category: "Quality and Process Visuals",
-    render: () => <BowTieDiagram />,
-  },
-  {
-    id: "funnel-variants",
-    title: "Funnel variants",
-    category: "Specialty Composition Visuals",
-    render: () => <FunnelChart data={funnelStages} />,
-  },
-  {
-    id: "pyramid-chart",
-    title: "Pyramid chart",
-    category: "Specialty Composition Visuals",
-    render: () => <FunnelChart data={funnelStages} variant="pyramid" />,
-  },
-  {
-    id: "venn-diagram",
-    title: "Venn diagram",
-    category: "Specialty Composition Visuals",
-    render: () => <VennDiagram />,
-  },
-  {
-    id: "euler-diagram",
-    title: "Euler diagram",
-    category: "Specialty Composition Visuals",
-    render: () => <EulerDiagram />,
-  },
-  {
-    id: "word-cloud",
-    title: "Word cloud",
-    category: "Text and Calendar Visuals",
-    render: () => <WordCloud />,
-  },
-  {
-    id: "tag-cloud",
-    title: "Tag cloud",
-    category: "Text and Calendar Visuals",
-    render: () => <TagCloud />,
-  },
-  {
-    id: "calendar-visual",
-    title: "Calendar visual",
-    category: "Text and Calendar Visuals",
-    render: () => <CalendarVisual />,
-  },
-  {
-    id: "kpi-ticker",
-    title: "KPI ticker",
-    category: "Text and Calendar Visuals",
-    render: () => <KPITicker />,
-  },
-  {
-    id: "data-ticker",
-    title: "Data ticker",
-    category: "Text and Calendar Visuals",
-    render: () => <DataTicker />,
-  },
-  {
-    id: "scrolling-text-visual",
-    title: "Scrolling text visual",
-    category: "Text and Calendar Visuals",
-    render: () => <ScrollingText />,
-  },
-  {
-    id: "animated-bar-race-chart",
-    title: "Animated bar-race chart",
-    category: "Animated Visuals",
-    render: () => <AnimatedBarRace />,
-  },
-  {
-    id: "animated-scatter-chart",
-    title: "Animated scatter chart",
-    category: "Animated Visuals",
-    render: () => <AnimatedScatter />,
-  },
-  {
-    id: "animated-timeline",
-    title: "Animated timeline",
-    category: "Animated Visuals",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "image-grid",
-    title: "Image grid",
-    category: "Image, SVG, and HTML Visuals",
-    render: () => <ImageGrid />,
-  },
-  {
-    id: "image-carousel",
-    title: "Image carousel",
-    category: "Image, SVG, and HTML Visuals",
-    render: () => <ImageCarousel />,
-  },
-  {
-    id: "svg-visualizations",
-    title: "SVG visualizations",
-    category: "Image, SVG, and HTML Visuals",
-    render: () => <SunburstChart />,
-  },
-  {
-    id: "html-based-visualizations",
-    title: "HTML-based visualizations",
-    category: "Image, SVG, and HTML Visuals",
-    selfFramed: true,
-    render: () => <SmartNarrative />,
-  },
-  {
-    id: "vega-charts",
-    title: "Vega charts",
-    category: "Grammar-of-Graphics / Declarative Visuals",
-    render: () => <FacetedPlot />,
-  },
-  {
-    id: "vega-lite-charts",
-    title: "Vega-Lite charts",
-    category: "Grammar-of-Graphics / Declarative Visuals",
-    render: () => <RegressionPlot />,
-  },
-  {
-    id: "deneb-visuals",
-    title: "Deneb visuals",
-    category: "Grammar-of-Graphics / Declarative Visuals",
-    render: () => <ParallelCoordinates />,
-  },
-  {
-    id: "small-multiples",
-    title: "Small multiples",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <SmallMultiples />,
-  },
-  {
-    id: "trellis-charts",
-    title: "Trellis charts",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <TrellisCharts />,
-  },
-  {
-    id: "faceted-charts",
-    title: "Faceted charts",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <FacetedCharts />,
-  },
-  {
-    id: "drill-down",
-    title: "Drill-down",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <DrillDownDemo />,
-  },
-  {
-    id: "drill-up",
-    title: "Drill-up",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <DrillDownDemo />,
-  },
-  {
-    id: "expand-all-hierarchy",
-    title: "Expand-all hierarchy",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    selfFramed: true,
-    render: () => <DecompositionTree />,
-  },
-  {
-    id: "cross-filtering",
-    title: "Cross-filtering",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <CrossFilterDemo />,
-  },
-  {
-    id: "cross-highlighting",
-    title: "Cross-highlighting",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <CrossFilterDemo />,
-  },
-  {
-    id: "report-page-tooltips",
-    title: "Report-page tooltips",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <VisualTooltipDemo />,
-  },
-  {
-    id: "visual-tooltips",
-    title: "Visual tooltips",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <VisualTooltipDemo />,
-  },
-  {
-    id: "forecasting",
-    title: "Forecasting",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    selfFramed: true,
-    render: () => <ForecastDemo />,
-  },
-  {
-    id: "anomaly-overlays",
-    title: "Anomaly overlays",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    selfFramed: true,
-    render: () => <AnomalyOverlayDemo />,
-  },
-  {
-    id: "error-bars",
-    title: "Error bars",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <ErrorBarsOverlay />,
-  },
-  {
-    id: "constant-lines",
-    title: "Constant lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <ConstantLine />,
-  },
-  {
-    id: "x-axis-reference-lines",
-    title: "X-axis reference lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <XAxisReferenceLine />,
-  },
-  {
-    id: "y-axis-reference-lines",
-    title: "Y-axis reference lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <YAxisReferenceLine />,
-  },
-  {
-    id: "average-lines",
-    title: "Average lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <AverageLine />,
-  },
-  {
-    id: "minimum-lines",
-    title: "Minimum lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <MinLine />,
-  },
-  {
-    id: "maximum-lines",
-    title: "Maximum lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <MaxLine />,
-  },
-  {
-    id: "median-lines",
-    title: "Median lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <MedianLine />,
-  },
-  {
-    id: "percentile-lines",
-    title: "Percentile lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <PercentileLine />,
-  },
-  {
-    id: "dynamic-reference-lines",
-    title: "Dynamic reference lines",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <DynamicReferenceLine />,
-  },
-  {
-    id: "trend-analysis",
-    title: "Trend analysis",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <TrendAnalysis />,
-  },
-  {
-    id: "conditional-data-colors",
-    title: "Conditional data colors",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <ConditionalDataColors />,
-  },
-  {
-    id: "conditional-icons",
-    title: "Conditional icons",
-    category: "Analytical and Formatting Techniques",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} showIcons />,
-  },
-  {
-    id: "conditional-data-bars",
-    title: "Conditional data bars",
-    category: "Analytical and Formatting Techniques",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} showDataBars />,
-  },
-  {
-    id: "conditional-backgrounds",
-    title: "Conditional backgrounds",
-    category: "Analytical and Formatting Techniques",
-    height: "auto",
-    render: () => <DataTable columns={tableColumns} rows={matrixRows} conditionalBackground />,
-  },
-  {
-    id: "dynamic-titles",
-    title: "Dynamic titles",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <DynamicTitle />,
-  },
-  {
-    id: "dynamic-labels",
-    title: "Dynamic labels",
-    category: "Analytical and Formatting Techniques",
-    height: "auto",
-    render: () => <DynamicText />,
-  },
-  {
-    id: "dynamic-images",
-    title: "Dynamic images",
-    category: "Analytical and Formatting Techniques",
-    height: 260,
-    render: () => <DynamicImage />,
-  },
-  {
-    id: "area",
-    title: "Area",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product"]} variant="area" />,
-  },
-  {
-    id: "stacked-area",
-    title: "Stacked area",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="stacked-area" />,
-  },
-  {
-    id: "100-stacked-area",
-    title: "100% stacked area",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="percent-area" />,
-  },
-  {
-    id: "smooth-area",
-    title: "Smooth area",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product"]} variant="area" />,
-  },
-  {
-    id: "bar",
-    title: "Bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales"]} variant="clustered-bar" />,
-  },
-  {
-    id: "stacked-bar",
-    title: "Stacked bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar" />,
-  },
-  {
-    id: "100-stacked-bar",
-    title: "100% stacked bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-bar" />,
-  },
-  {
-    id: "3d-clustered-bar",
-    title: "3D clustered bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales","profit"]} variant="clustered-bar" />,
-  },
-  {
-    id: "3d-cylinder-bar",
-    title: "3D cylinder bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales"]} variant="clustered-bar" />,
-  },
-  {
-    id: "grouped-stacked-bar",
-    title: "Grouped stacked bar",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar" />,
-  },
-  {
-    id: "column",
-    title: "Column",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales"]} variant="clustered-column" />,
-  },
-  {
-    id: "stacked-column",
-    title: "Stacked column",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-column" />,
-  },
-  {
-    id: "100-stacked-column",
-    title: "100% stacked column",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-column" />,
-  },
-  {
-    id: "3d-clustered-column",
-    title: "3D clustered column",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales","profit"]} variant="clustered-column" />,
-  },
-  {
-    id: "3d-cylinder-column",
-    title: "3D cylinder column",
-    category: "Paginated Report Visualizations",
-    render: () => <BarColumnChart data={salesByRegion} seriesKeys={["sales"]} variant="clustered-column" />,
-  },
-  {
-    id: "smooth-line",
-    title: "Smooth line",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={timeSeries} seriesKeys={["revenue"]} variant="spline" />,
-  },
-  {
-    id: "stepped-line",
-    title: "Stepped line",
-    category: "Paginated Report Visualizations",
-    render: () => <LineAreaChart data={timeSeries} seriesKeys={["revenue"]} variant="step" />,
-  },
-  {
-    id: "range-chart",
-    title: "Range chart",
-    category: "Paginated Report Visualizations",
-    render: () => <RangeAreaChart />,
-  },
-  {
-    id: "smooth-range",
-    title: "Smooth range",
-    category: "Paginated Report Visualizations",
-    render: () => <RangeAreaChart />,
-  },
-  {
-    id: "range-column",
-    title: "Range column",
-    category: "Paginated Report Visualizations",
-    render: () => <BandChart />,
-  },
-  {
-    id: "range-bar",
-    title: "Range bar",
-    category: "Paginated Report Visualizations",
-    render: () => <TornadoChart />,
-  },
-  {
-    id: "gantt-style-range-chart",
-    title: "Gantt-style range chart",
-    category: "Paginated Report Visualizations",
-    render: () => <AnimatedTimeline />,
-  },
-  {
-    id: "high-low-open-close-chart",
-    title: "High-Low-Open-Close chart",
-    category: "Paginated Report Visualizations",
-    render: () => <OHLCChart />,
-  },
-  {
-    id: "gauge-ranges",
-    title: "Gauge ranges",
-    category: "Paginated Report Visualizations",
-    render: () => <RadialGauge value={70} ranges={[{to:40,color:"var(--chart-negative)"},{to:75,color:"var(--chart-warning)"},{to:100,color:"var(--chart-positive)"}]} />,
-  },
-  {
-    id: "gauge-pointers",
-    title: "Gauge pointers",
-    category: "Paginated Report Visualizations",
-    render: () => <DialGauge value={55} />,
-  },
-  {
-    id: "kpi-indicators",
-    title: "KPI indicators",
-    category: "Paginated Report Visualizations",
-    render: () => <TrafficLightKpi metric={kpiMetrics[2]} />,
-  },
-  {
-    id: "indicators-embedded-in-gauges",
-    title: "Indicators embedded in gauges",
-    category: "Paginated Report Visualizations",
-    render: () => <RadialGauge value={88} label="Health" />,
-  },
-  {
-    id: "sparkline",
-    title: "Sparkline",
-    category: "Paginated Report Visualizations",
-    render: () => <LineSparkline />,
-  },
-  {
-    id: "data-bar",
-    title: "Data bar",
-    category: "Paginated Report Visualizations",
-    render: () => <DataBar />,
-  },
-  {
-    id: "indicator",
-    title: "Indicator",
-    category: "Paginated Report Visualizations",
-    render: () => <TrafficLightKpi metric={kpiMetrics[1]} />,
-  },
-  {
-    id: "kpi-status-indicator",
-    title: "KPI status indicator",
-    category: "Paginated Report Visualizations",
-    selfFramed: true,
-    render: () => <KpiVisual metric={kpiMetrics[3]} />,
-  },
-  {
-    id: "bing-tile-backed-map",
-    title: "Bing tile-backed map",
-    category: "Paginated Report Visualizations",
-    render: () => <TileGridMap />,
-  }
-];
+const renderers = {
+  "clustered-bar-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="clustered-bar" />,
+  "stacked-bar-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-bar" />,
+  "100-stacked-bar-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-bar" />,
+  "clustered-column-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="clustered-column" />,
+  "stacked-column-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="stacked-column" />,
+  "100-stacked-column-chart": () => <LazyBarColumnChart data={stackedSeries} seriesKeys={["product","service","other"]} variant="percent-column" />,
+  "line-chart": () => <LazyLineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="line" />,
+  "area-chart": () => <LazyLineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="area" />,
+  "stacked-area-chart": () => <LazyLineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="stacked-area" />,
+  "100-stacked-area-chart": () => <LazyLineAreaChart data={stackedSeries} categoryKey="name" seriesKeys={["product","service","other"]} variant="percent-area" />,
+  "line-and-clustered-column-chart": () => <LazyComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="line-clustered-column" />,
+  "line-and-stacked-column-chart": () => <LazyComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="line-stacked-column" />,
+  "dual-axis-combo-chart-configurations": () => <LazyComboChart data={salesByRegion} barKeys={["sales"]} lineKeys={["profit"]} variant="dual-axis" />,
+  "waterfall-chart": () => <LazyWaterfallChart data={waterfallData} />,
+  "ribbon-chart": () => <LazyRibbonChart data={stackedSeries} seriesKeys={["product","service","other"]} />,
+  "pie-chart": () => <LazyPieDonutChart data={partToWhole} variant="pie" />,
+  "donut-chart": () => <LazyPieDonutChart data={partToWhole} variant="donut" innerLabel="100%" />,
+  "treemap": () => <LazyTreemapChart data={treemapData} />,
+  "funnel-chart": () => <LazyFunnelChart data={funnelStages} />,
+  "scatter-plot": () => <LazyScatterBubbleChart data={scatterPoints} variant="scatter" />,
+  "bubble-chart": () => <LazyScatterBubbleChart data={scatterPoints} variant="bubble" />,
+  "dot-plot": () => <LazyScatterBubbleChart data={scatterPoints} variant="dot-plot" />,
+  "table": () => <LazyDataTable columns={tableColumns} rows={matrixRows} />,
+  "matrix": () => <LazyMatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} />,
+  "hierarchical-matrix": () => <LazyMatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showSubtotals />,
+  "pivot-style-matrix": () => <LazyMatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showGrandTotal />,
+  "table-with-totals": () => <LazyDataTable columns={tableColumns} rows={matrixRows} showTotals />,
+  "matrix-with-subtotals": () => <LazyMatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showSubtotals />,
+  "matrix-with-grand-totals": () => <LazyMatrixTable rows={matrixRows} rowKey="region" columns={["q1","q2","q3","q4"]} showGrandTotal />,
+  "table-matrix-with-conditional-background-colors": () => <LazyDataTable columns={tableColumns} rows={matrixRows} conditionalBackground />,
+  "table-matrix-with-conditional-font-colors": () => <LazyDataTable columns={tableColumns} rows={matrixRows} conditionalFont />,
+  "table-matrix-with-icons": () => <LazyDataTable columns={tableColumns} rows={matrixRows} showIcons />,
+  "table-matrix-with-data-bars": () => <LazyDataTable columns={tableColumns} rows={matrixRows} showDataBars />,
+  "table-matrix-with-web-urls": () => <LazyDataTable columns={[...tableColumns, {key:"url", label:"Link"}]} rows={matrixRowsWithLinks} linkKeys={["url"]} />,
+  "table-matrix-with-images": () => <LazyDataTable columns={[{key:"img",label:"Avatar"},{key:"region",label:"Region"},...tableColumns.slice(1)]} rows={matrixRowsWithImages} imageKeys={["img"]} />,
+  "table-matrix-with-sparklines": () => <LazyDataTable columns={tableColumns} rows={matrixRows} sparklineKey="trend" />,
+  "line-sparkline": () => <LazyLineSparkline />,
+  "column-sparkline": () => <LazyColumnSparkline />,
+  "modern-card-visual-single-card-layout": () => <LazyModernCard metric={kpiMetrics[0]} withReference />,
+  "modern-card-visual-multi-card-layout": () => <LazyMultiCardLayout metrics={kpiMetrics} />,
+  "modern-card-visual-multi-category-card-layout": () => <LazyMultiCategoryCards metrics={kpiMetrics.map((m,i)=>({...m, category: i<2?"Growth":"Quality"}))} />,
+  "modern-card-visual-card-with-reference-labels": () => <LazyModernCard metric={kpiMetrics[0]} withReference />,
+  "modern-card-visual-card-with-images": () => <LazyModernCard metric={kpiMetrics[1]} withImage />,
+  "modern-card-visual-data-driven-card-images": () => <LazyModernCard metric={{...kpiMetrics[0], imageUrl: demoThumb(1)}} withImage />,
+  "legacy-single-card": () => <LazyLegacyCard metric={kpiMetrics[0]} />,
+  "legacy-multi-row-card": () => <LazyMultiRowCard metrics={kpiMetrics} />,
+  "kpi-visual": () => <LazyKpiVisual metric={kpiMetrics[0]} />,
+  "radial-gauge": () => <LazyRadialGauge value={72} label="Attainment" ranges={[{to:50,color:"var(--chart-negative)"},{to:80,color:"var(--chart-warning)"},{to:100,color:"var(--chart-positive)"}]} />,
+  "goals-scorecard-visual": () => <LazyScorecard metrics={kpiMetrics.slice(0,3)} />,
+  "hex-maps": () => <LazyHexMap />,
+  "tile-grid-maps": () => <LazyTileGridMap />,
+  "decomposition-tree": () => <LazyDecompositionTree />,
+  "ai-assisted-decomposition-tree": () => <LazyAIDecompositionTree />,
+  "key-influencers": () => <LazyKeyInfluencers />,
+  "top-segments": () => <LazyTopSegments />,
+  "smart-narrative": () => <LazySmartNarrative />,
+  "anomaly-detection": () => <LazyAnomalyDetection />,
+  "q-a-visual": () => <LazyQAVisual />,
+  "other-compatible-visuals-selected-by-the-q-a-engine": () => <LazyQAEngineVisual mock />,
+  "standard-slicer": () => <LazyStandardSlicer />,
+  "button-slicer": () => <LazyButtonSlicer />,
+  "list-slicer": () => <LazyListSlicer />,
+  "input-slicer": () => <LazyInputSlicer />,
+  "vertical-list-slicer": () => <LazyVerticalListSlicer />,
+  "dropdown-slicer": () => <LazyDropdownSlicer />,
+  "tile-slicer": () => <LazyTileSlicer />,
+  "hierarchical-slicer": () => <LazyHierarchicalSlicer />,
+  "searchable-slicer": () => <LazySearchableSlicer />,
+  "numeric-slicer": () => <LazyNumericSlicer />,
+  "numeric-range-slicer": () => <LazyNumericRangeSlicer />,
+  "between-slicer": () => <LazyBetweenSlicer />,
+  "greater-than-after-slicer": () => <LazyGreaterThanSlicer />,
+  "less-than-before-slicer": () => <LazyLessThanSlicer />,
+  "date-range-slicer": () => <LazyDateRangeSlicer />,
+  "date-hierarchy-slicer": () => <LazyDateHierarchySlicer />,
+  "relative-date-slicer": () => <LazyRelativeDateSlicer />,
+  "relative-time-slicer": () => <LazyRelativeTimeSlicer />,
+  "date-picker": () => <LazyDatePickerSlicer />,
+  "single-select-buttons": () => <LazySingleSelectButtons />,
+  "multi-select-buttons": () => <LazyMultiSelectButtons />,
+  "button-grid": () => <LazyButtonGrid />,
+  "button-list": () => <LazyButtonList />,
+  "image-buttons": () => <LazyImageButtons />,
+  "icon-buttons": () => <LazyIconButtons />,
+  "searchable-list": () => <LazySearchableListSlicer />,
+  "hierarchical-list": () => <LazyHierarchicalListSlicer />,
+  "conditionally-formatted-list": () => <LazyConditionalListSlicer />,
+  "exact-text-filter": () => <LazyExactTextFilter />,
+  "contains-filter": () => <LazyContainsFilter />,
+  "starts-with-filter": () => <LazyStartsWithFilter />,
+  "numeric-input-filter": () => <LazyNumericInputFilter />,
+  "free-form-input": () => <LazyFreeFormInput />,
+  "pasted-value-filtering": () => <LazyPastedValueFilter />,
+  "input-collection-for-write-back-translytical-scenarios": () => <LazyInputCollection />,
+  "chiclet-slicer": () => <LazyChicletSlicer />,
+  "timeline-slicer": () => <LazyTimelineSlicer />,
+  "advanced-date-slicer": () => <LazyAdvancedDateSlicer />,
+  "advanced-hierarchy-slicer": () => <LazyAdvancedHierarchySlicer />,
+  "image-visual": () => <LazyImageVisual />,
+  "static-image": () => <LazyStaticImage />,
+  "dynamic-data-driven-image": () => <LazyDynamicImage />,
+  "text-box": () => <LazyTextBox />,
+  "dynamic-data-bound-text": () => <LazyDynamicText />,
+  "rectangle": () => <LazyRectangleShape />,
+  "oval": () => <LazyOvalShape />,
+  "line": () => <LazyLineShape />,
+  "arrow": () => <LazyArrowShape />,
+  "other-report-shapes": () => <LazyReportShape />,
+  "button": () => <LazyNavButton />,
+  "blank-button": () => <LazyBlankButton />,
+  "back-button": () => <LazyBackButton />,
+  "bookmark-button": () => <LazyBookmarkButton />,
+  "drill-through-button": () => <LazyDrillThroughButton />,
+  "page-navigation-button": () => <LazyPageNavigationButton />,
+  "web-url-button": () => <LazyWebUrlButton />,
+  "q-a-button": () => <LazyQAButton />,
+  "apply-all-slicers-button": () => <LazyApplyAllSlicersButton />,
+  "clear-all-slicers-button": () => <LazyClearAllSlicersButton />,
+  "page-navigator": () => <LazyPageNavigator />,
+  "bookmark-navigator": () => <LazyBookmarkNavigator />,
+  "power-apps-visual": () => <LazyPowerAppsVisual mock />,
+  "power-automate-visual": () => <LazyPowerAutomateVisual flowId="publish-report" mock />,
+  "histogram": () => <LazyHistogram />,
+  "density-plot": () => <LazyDensityPlot />,
+  "kernel-density-plot": () => <LazyKernelDensityPlot />,
+  "box-plot": () => <LazyBoxPlot />,
+  "violin-plot": () => <LazyViolinPlot />,
+  "ridgeline-plot": () => <LazyRidgelinePlot />,
+  "hexbin-plot": () => <LazyHexbinPlot />,
+  "correlogram": () => <LazyCorrelogram />,
+  "scatterplot-matrix": () => <LazyScatterplotMatrix />,
+  "statistical-heatmap": () => <LazyStatisticalHeatmap />,
+  "dendrogram": () => <LazyDendrogram />,
+  "hierarchical-clustering-plot": () => <LazyDendrogram />,
+  "survival-curve": () => <LazySurvivalCurve />,
+  "roc-curve": () => <LazyROCCurve />,
+  "precision-recall-curve": () => <LazyPrecisionRecallCurve />,
+  "qq-plot": () => <LazyQQPlot />,
+  "residual-plot": () => <LazyResidualPlot />,
+  "regression-plot": () => <LazyRegressionPlot />,
+  "contour-plot": () => <LazyContourPlot />,
+  "faceted-plots": () => <LazyFacetedPlot />,
+  "confidence-band-plots": () => <LazyConfidenceBandPlot />,
+  "network-plots": () => <LazyNetworkPlot />,
+  "specialized-scientific-plots": () => <LazyScientificSpecVisual spec={scientificContourSpec} methodLabel="Sampled scalar field" units="normalized intensity" reference="Vega-Lite rect encoding" />,
+  "kde-plot": () => <LazyKernelDensityPlot />,
+  "heatmap": () => <LazyStatisticalHeatmap />,
+  "correlation-matrix": () => <LazyCorrelogram />,
+  "pair-plot": () => <LazyPairPlot />,
+  "regression-chart": () => <LazyRegressionPlot />,
+  "contour-chart": () => <LazyContourPlot />,
+  "error-bar-plot": () => <LazyErrorBarPlot />,
+  "statistical-distribution-plot": () => <LazyDensityPlot />,
+  "time-series-analysis-chart": () => <LazyTrendAnalysis />,
+  "forecast-visualization": () => <LazyForecastDemo />,
+  "machine-learning-result-plots": () => <LazyMachineLearningResultPlot result={mlFeatureResult} />,
+  "cluster-plots": () => <LazyClusterPlot />,
+  "pca-plots": () => <LazyPCAPlot />,
+  "confusion-matrix": () => <LazyConfusionMatrix />,
+  "feature-importance-chart": () => <LazyFeatureImportanceChart />,
+  "precision-recall-chart": () => <LazyPrecisionRecallCurve />,
+  "custom-matplotlib-visualizations": () => <LazyMatplotlibArtifact src={galleryImages[0].src} alt="Revenue trend exported from a Matplotlib workflow" format="svg" caption="Static artifact supplied by the caller" />,
+  "gantt-chart": () => <LazyGanttChart data={ganttTasks} />,
+  "advanced-gantt-chart": () => <LazyAdvancedGanttChart data={ganttTasks} />,
+  "timeline-chart": () => <LazyTimelineChart events={timelineEvents} />,
+  "milestone-chart": () => <LazyMilestoneChart events={timelineEvents} />,
+  "project-roadmap": () => <LazyProjectRoadmap data={ganttTasks} />,
+  "sankey-diagram": () => <LazySankeyDiagram />,
+  "alluvial-diagram": () => <LazyAlluvialDiagram />,
+  "chord-diagram": () => <LazyChordDiagram />,
+  "network-diagram": () => <LazyNetworkDiagram />,
+  "force-directed-network": () => <LazyForceDirectedNetwork />,
+  "dependency-graph": () => <LazyDependencyGraph />,
+  "organizational-chart": () => <LazyOrgChart />,
+  "process-flow": () => <LazyProcessFlow />,
+  "flowchart": () => <LazyFlowchart />,
+  "journey-map": () => <LazyJourneyMap />,
+  "decision-tree": () => <LazyDecisionTree />,
+  "tree-diagram": () => <LazyTreeDiagram />,
+  "sunburst-chart": () => <LazySunburstChart />,
+  "icicle-chart": () => <LazyIcicleChart />,
+  "circle-packing": () => <LazyCirclePacking />,
+  "hierarchical-edge-bundling": () => <LazyHierarchicalEdgeBundling />,
+  "radar-chart": () => <LazyRadarChart />,
+  "spider-chart": () => <LazySpiderChart />,
+  "polar-chart": () => <LazyPolarChart />,
+  "rose-chart": () => <LazyRoseChart />,
+  "coxcomb-chart": () => <LazyCoxcombChart />,
+  "nightingale-rose-chart": () => <LazyNightingaleRose />,
+  "polar-area-chart": () => <LazyPolarAreaChart />,
+  "bullet-chart": () => <LazyBulletChart value={72} target={80} label="Attainment" />,
+  "linear-gauge": () => <LazyLinearGauge value={64} label="Utilization" />,
+  "thermometer-gauge": () => <LazyThermometerGauge value={78} />,
+  "dial-gauge": () => <LazyDialGauge value={66} label="Score" />,
+  "speedometer": () => <LazyDialGauge value={82} label="Velocity" />,
+  "advanced-kpi": () => <LazyKpiVisual metric={kpiMetrics[0]} />,
+  "traffic-light-kpi": () => <LazyTrafficLightKpi metric={kpiMetrics[0]} />,
+  "progress-bar": () => <LazyProgressBar value={0.68} label="Pipeline" />,
+  "progress-ring": () => <LazyProgressRing value={0.74} label="Complete" />,
+  "waffle-chart": () => <LazyWaffleChart />,
+  "pictogram-chart": () => <LazyPictogramChart />,
+  "icon-array": () => <LazyIconArray />,
+  "infographic-chart": () => <LazyWaffleChart />,
+  "lollipop-chart": () => <LazyLollipopChart />,
+  "dumbbell-chart": () => <LazyDumbbellChart />,
+  "connected-dot-plot": () => <LazyConnectedDotPlot />,
+  "slope-chart": () => <LazySlopeChart />,
+  "bump-chart": () => <LazyBumpChart />,
+  "butterfly-chart": () => <LazyButterflyChart />,
+  "tornado-chart": () => <LazyTornadoChart />,
+  "population-pyramid": () => <LazyPopulationPyramid />,
+  "diverging-bar-chart": () => <LazyDivergingBarChart />,
+  "likert-chart": () => <LazyLikertChart />,
+  "dot-density-chart": () => <LazyDotDensityChart />,
+  "strip-plot": () => <LazyStripPlot />,
+  "beeswarm-plot": () => <LazyBeeswarmPlot />,
+  "jitter-plot": () => <LazyJitterPlot />,
+  "box-and-whisker-plot": () => <LazyBoxPlot />,
+  "raincloud-plot": () => <LazyRaincloudPlot />,
+  "frequency-polygon": () => <LazyFrequencyPolygon />,
+  "ridgeline-chart": () => <LazyRidgelinePlot />,
+  "2d-density-plot": () => <LazyContourPlot />,
+  "calendar-heatmap": () => <LazyCalendarHeatmap />,
+  "matrix-heatmap": () => <LazyStatisticalHeatmap />,
+  "correlation-heatmap": () => <LazyCorrelogram />,
+  "risk-matrix": () => <LazyRiskMatrix />,
+  "quadrant-chart": () => <LazyScatterBubbleChart data={scatterPoints} variant="quadrant" xThreshold={60} yThreshold={50} />,
+  "mekko-chart": () => <LazyMekkoChart />,
+  "marimekko-chart": () => <LazyMarimekkoChart />,
+  "mosaic-plot": () => <LazyMosaicPlot />,
+  "parallel-coordinates-plot": () => <LazyParallelCoordinates />,
+  "parallel-sets": () => <LazyParallelSets />,
+  "ternary-plot": () => <LazyTernaryPlot />,
+  "streamgraph": () => <LazyStreamgraph />,
+  "horizon-chart": () => <LazyHorizonChart />,
+  "step-chart": () => <LazyStepChart />,
+  "spline-chart": () => <LazySplineChart />,
+  "range-area-chart": () => <LazyRangeAreaChart />,
+  "band-chart": () => <LazyBandChart />,
+  "fan-chart": () => <LazyFanChart />,
+  "confidence-interval-chart": () => <LazyConfidenceIntervalChart />,
+  "error-bar-chart": () => <LazyErrorBarPlot />,
+  "candlestick-chart": () => <LazyCandlestickChart />,
+  "ohlc-chart": () => <LazyOHLCChart />,
+  "stock-chart": () => <LazyStockChart />,
+  "renko-chart": () => <LazyRenkoChart />,
+  "kagi-chart": () => <LazyKagiChart />,
+  "financial-waterfall": () => <LazyFinancialWaterfall />,
+  "pareto-chart": () => <LazyParetoChart />,
+  "control-chart": () => <LazyControlChart />,
+  "spc-chart": () => <LazySPCChart />,
+  "run-chart": () => <LazyRunChart />,
+  "fishbone-ishikawa-diagram": () => <LazyFishboneDiagram />,
+  "bow-tie-diagram": () => <LazyBowTieDiagram />,
+  "funnel-variants": () => <LazyFunnelChart data={funnelStages} />,
+  "pyramid-chart": () => <LazyFunnelChart data={funnelStages} variant="pyramid" />,
+  "venn-diagram": () => <LazyVennDiagram />,
+  "euler-diagram": () => <LazyEulerDiagram />,
+  "word-cloud": () => <LazyWordCloud />,
+  "tag-cloud": () => <LazyTagCloud />,
+  "calendar-visual": () => <LazyCalendarVisual />,
+  "kpi-ticker": () => <LazyKPITicker />,
+  "data-ticker": () => <LazyDataTicker />,
+  "scrolling-text-visual": () => <LazyScrollingText />,
+  "animated-bar-race-chart": () => <LazyAnimatedBarRace frames={barRaceFrames} />,
+  "animated-scatter-chart": () => <LazyAnimatedScatter frames={animatedScatterFrames} />,
+  "animated-timeline": () => <LazyAnimatedTimeline frames={animatedTimelineFrames} />,
+  "image-grid": () => <LazyImageGrid images={galleryImages} />,
+  "image-carousel": () => <LazyImageCarousel images={galleryImages} />,
+  "svg-visualizations": () => <LazySafeSvgVisual svg={gallerySafeSvg} title="Sanitized SVG column chart" description="Four ascending columns rendered from caller-supplied SVG." />,
+  "html-based-visualizations": () => <LazySafeHtmlVisual html={gallerySafeHtml} ariaLabel="Sanitized quarterly operating summary" />,
+  "vega-charts": () => <LazyVegaChart spec={vegaBarSpec} />,
+  "vega-lite-charts": () => <LazyVegaLiteChart spec={vegaLiteScatterSpec} />,
+  "deneb-visuals": () => <LazyDenebSpecRenderer spec={denebCompatibleSpec} mode="vega-lite" />,
+  "small-multiples": () => <LazySmallMultiples />,
+  "trellis-charts": () => <LazyTrellisCharts />,
+  "faceted-charts": () => <LazyFacetedCharts />,
+  "drill-down": () => <LazyDrillDownDemo />,
+  "drill-up": () => <LazyDrillDownDemo />,
+  "expand-all-hierarchy": () => <LazyDecompositionTree />,
+  "cross-filtering": () => <LazyCrossFilterDemo />,
+  "cross-highlighting": () => <LazyCrossFilterDemo />,
+  "report-page-tooltips": () => <LazyVisualTooltipDemo />,
+  "visual-tooltips": () => <LazyVisualTooltipDemo />,
+  "forecasting": () => <LazyForecastDemo />,
+  "anomaly-overlays": () => <LazyAnomalyOverlayDemo />,
+  "error-bars": () => <LazyErrorBarsOverlay />,
+  "constant-lines": () => <LazyConstantLine />,
+  "x-axis-reference-lines": () => <LazyXAxisReferenceLine />,
+  "y-axis-reference-lines": () => <LazyYAxisReferenceLine />,
+  "average-lines": () => <LazyAverageLine />,
+  "minimum-lines": () => <LazyMinLine />,
+  "maximum-lines": () => <LazyMaxLine />,
+  "median-lines": () => <LazyMedianLine />,
+  "percentile-lines": () => <LazyPercentileLine />,
+  "dynamic-reference-lines": () => <LazyDynamicReferenceLine />,
+  "trend-analysis": () => <LazyTrendAnalysis />,
+  "conditional-data-colors": () => <LazyConditionalDataColors />,
+  "conditional-icons": () => <LazyDataTable columns={tableColumns} rows={matrixRows} showIcons />,
+  "conditional-data-bars": () => <LazyDataTable columns={tableColumns} rows={matrixRows} showDataBars />,
+  "conditional-backgrounds": () => <LazyDataTable columns={tableColumns} rows={matrixRows} conditionalBackground />,
+  "dynamic-titles": () => <LazyDynamicTitle />,
+  "dynamic-labels": () => <LazyDynamicText />,
+  "dynamic-images": () => <LazyDynamicImage />,
+  "page-measurement": () => <LazyPaginatedReport variant="page-measurement" maxPreviewPages={2} />,
+  "explicit-page-breaks": () => <LazyPaginatedReport variant="explicit-page-breaks" maxPreviewPages={2} />,
+  "repeated-table-headers": () => <LazyPaginatedReport variant="repeated-table-headers" maxPreviewPages={2} />,
+  "group-headers": () => <LazyPaginatedReport variant="group-headers" maxPreviewPages={2} />,
+  "nested-groups": () => <LazyPaginatedReport variant="nested-groups" maxPreviewPages={2} />,
+  "group-subtotals": () => <LazyPaginatedReport variant="group-subtotals" maxPreviewPages={2} />,
+  "grand-total": () => <LazyPaginatedReport variant="grand-total" maxPreviewPages={2} />,
+  "running-totals": () => <LazyPaginatedReport variant="running-totals" maxPreviewPages={2} />,
+  "page-numbers": () => <LazyPaginatedReport variant="page-numbers" maxPreviewPages={2} />,
+  "first-and-last-page-sections": () => <LazyPaginatedReport variant="first-last-page-sections" maxPreviewPages={2} />,
+  "keep-groups-together": () => <LazyPaginatedReport variant="keep-groups-together" maxPreviewPages={2} />,
+  "orphan-control": () => <LazyPaginatedReport variant="orphan-control" maxPreviewPages={2} />,
+  "nested-data-regions": () => <LazyPaginatedReport variant="nested-data-regions" maxPreviewPages={2} />,
+  "subreport-region": () => <LazyPaginatedReport variant="subreport-region" maxPreviewPages={2} />,
+  "chart-data-region": () => <LazyPaginatedReport variant="chart-data-region" maxPreviewPages={2} />,
+  "table-data-region": () => <LazyPaginatedReport variant="table-data-region" maxPreviewPages={2} />,
+  "matrix-data-region": () => <LazyPaginatedReport variant="matrix-data-region" maxPreviewPages={2} />,
+  "list-data-region": () => <LazyPaginatedReport variant="list-data-region" maxPreviewPages={2} />,
+  "two-column-flow": () => <LazyPaginatedReport variant="two-column-flow" maxPreviewPages={2} />,
+  "letter-landscape": () => <LazyPaginatedReport variant="letter-landscape" maxPreviewPages={2} />,
+  "legal-portrait": () => <LazyPaginatedReport variant="legal-portrait" maxPreviewPages={2} />,
+  "custom-page-size": () => <LazyPaginatedReport variant="custom-page-size" maxPreviewPages={2} />,
+  "print-margin-guide": () => <LazyPaginatedReport variant="print-margin-guide" maxPreviewPages={2} />,
+  "report-header-and-footer": () => <LazyPaginatedReport variant="report-header-footer" maxPreviewPages={2} />,
+  "conditional-group-page-breaks": () => <LazyPaginatedReport variant="conditional-group-breaks" maxPreviewPages={2} />,
+  "deterministic-sort-and-group": () => <LazyPaginatedReport variant="deterministic-sort-group" maxPreviewPages={2} />,
+  "parameter-and-filter-summary": () => <LazyPaginatedReport variant="parameter-filter-summary" maxPreviewPages={2} />,
+  "document-map": () => <LazyPaginatedReport variant="document-map" maxPreviewPages={2} />,
+  "drillthrough-links": () => <LazyPaginatedReport variant="drillthrough-links" maxPreviewPages={2} />,
+  "monochrome-print-style": () => <LazyPaginatedReport variant="monochrome-print-style" maxPreviewPages={2} />,
+  "pdf-export-layout-preview": () => <LazyPaginatedReport variant="pdf-export-layout-preview" maxPreviewPages={2} />,
+  "accessible-reading-order": () => <LazyPaginatedReport variant="accessible-reading-order" maxPreviewPages={2} />,
+} satisfies Record<CatalogManifestId, () => ReactNode>;
+
+export const catalog: CatalogEntry[] = catalogManifest.map((entry) => ({
+  ...entry,
+  render: renderers[entry.id],
+}));
 
 export const categories = [...new Set(catalog.map((c) => c.category))];

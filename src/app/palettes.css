@@ -1,19 +1,15 @@
 /*
- * Demo palette overrides. Surfaces stay on the B&G Time light/dark shell;
+ * Demo palette overrides. Surfaces stay on the neutral light/dark shell;
  * accent + chart series swap so the gallery can preview popular looks quickly.
  *
- * Site default is Berry (`data-palette="berry"`). Bare `:root` / `.dark` (no
- * attribute, or after picking B&G Time) is the classic navy token set in
- * globals.css.
+ * Site default is Neutral. Bare `:root` / `.dark` (no attribute) uses the
+ * balanced categorical token set in globals.css.
  */
 
-/* ——— B&G ——— */
-/* Brasfield & Gorrie brand: Blue 4 #002070 (primary navy), Blue 5 #00143C
-   (deep navy), Blue 3 #0028F0 (electric accent, light surfaces only),
-   Blue 2 #3888FF (accent on dark), Blue 1 #B0FFFF (pale tint),
-   Gray 1 #E8E8EC. The ramp alternates deep/bright so adjacent series stay
-   distinguishable within one blue family. */
-:root[data-palette="bg-brand"] {
+/* ——— Cobalt ——— */
+/* Deep navy → electric blue ramp. Alternates deep/bright so adjacent series
+   stay distinguishable within one blue family. */
+:root[data-palette="cobalt"] {
   --ring: #0028f0;
   --accent: #0028f0;
   --accent-hover: #0021c9;
@@ -32,20 +28,25 @@
   --chart-negative: #9c343c;
   --chart-neutral: #5b6675;
   --chart-warning: #8a5010;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #ffffff;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
-.dark[data-palette="bg-brand"] {
+.dark[data-palette="cobalt"] {
   --ring: #3888ff;
   --accent: #3888ff;
   --accent-hover: #6ea4ff;
   --accent-soft: rgb(56 136 255 / 0.18);
-  /* Bright-blue fills take the deep navy as their ink. */
   --accent-foreground: #00143c;
   --sidebar-active: rgb(255 255 255 / 0.11);
   --chart-1: #3888ff;
-  /* Blue 1 is "subtle highlight only" on paper; on the dark card it reads as
-     a bright cyan marker, which is where it earns its place. */
   --chart-2: #b0ffff;
   --chart-3: #7fa8ff;
   --chart-4: #4c63ff;
@@ -57,7 +58,15 @@
   --chart-negative: #e99ba1;
   --chart-neutral: #a2acbd;
   --chart-warning: #e0a45e;
-  --chart-label: #00143c;
+  --chart-on-1: #00143c;
+  --chart-on-2: #00143c;
+  --chart-on-3: #00143c;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #00143c;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #00143c;
+  --chart-on-8: #00143c;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Ocean ——— */
@@ -80,7 +89,15 @@
   --chart-negative: #e11d48;
   --chart-neutral: #64748b;
   --chart-warning: #d97706;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #020617;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="ocean"] {
@@ -102,7 +119,15 @@
   --chart-negative: #fb7185;
   --chart-neutral: #94a3b8;
   --chart-warning: #fbbf24;
-  --chart-label: #082f3a;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Sunset ——— */
@@ -125,7 +150,15 @@
   --chart-negative: #e11d48;
   --chart-neutral: #78716c;
   --chart-warning: #d97706;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="sunset"] {
@@ -147,7 +180,15 @@
   --chart-negative: #fb7185;
   --chart-neutral: #a8a29e;
   --chart-warning: #fbbf24;
-  --chart-label: #431407;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Forest ——— */
@@ -170,7 +211,15 @@
   --chart-negative: #b91c1c;
   --chart-neutral: #57534e;
   --chart-warning: #a16207;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #ffffff;
+  --chart-on-3: #ffffff;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="forest"] {
@@ -192,7 +241,15 @@
   --chart-negative: #f87171;
   --chart-neutral: #a8a29e;
   --chart-warning: #fbbf24;
-  --chart-label: #052e16;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Slate ——— */
@@ -215,7 +272,15 @@
   --chart-negative: #b91c1c;
   --chart-neutral: #64748b;
   --chart-warning: #b45309;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #ffffff;
+  --chart-on-3: #ffffff;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #ffffff;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="slate"] {
@@ -237,7 +302,15 @@
   --chart-negative: #f87171;
   --chart-neutral: #a1a1aa;
   --chart-warning: #fbbf24;
-  --chart-label: #0f172a;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Vivid ——— */
@@ -260,7 +333,15 @@
   --chart-negative: #dc2626;
   --chart-neutral: #64748b;
   --chart-warning: #ca8a04;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #ffffff;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="vivid"] {
@@ -282,7 +363,15 @@
   --chart-negative: #f87171;
   --chart-neutral: #94a3b8;
   --chart-warning: #facc15;
-  --chart-label: #0f172a;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 /* ——— Berry ——— */
@@ -305,7 +394,15 @@
   --chart-negative: #e11d48;
   --chart-neutral: #64748b;
   --chart-warning: #d97706;
-  --chart-label: #ffffff;
+  --chart-on-1: #ffffff;
+  --chart-on-2: #ffffff;
+  --chart-on-3: #ffffff;
+  --chart-on-4: #ffffff;
+  --chart-on-5: #ffffff;
+  --chart-on-6: #ffffff;
+  --chart-on-7: #ffffff;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }
 
 .dark[data-palette="berry"] {
@@ -327,5 +424,13 @@
   --chart-negative: #fb7185;
   --chart-neutral: #a1a1aa;
   --chart-warning: #fbbf24;
-  --chart-label: #3b0764;
+  --chart-on-1: #0f172a;
+  --chart-on-2: #0f172a;
+  --chart-on-3: #0f172a;
+  --chart-on-4: #0f172a;
+  --chart-on-5: #0f172a;
+  --chart-on-6: #0f172a;
+  --chart-on-7: #0f172a;
+  --chart-on-8: #0f172a;
+  --chart-label: var(--chart-on-1);
 }

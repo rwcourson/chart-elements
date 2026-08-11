@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
+  // Same radius token family as Button/Input so chips don't read as a different system.
   "inline-flex items-center rounded-[var(--radius-sm)] border px-2 py-0.5 text-[12px] font-semibold tracking-[-0.01em] transition-colors",
   {
     variants: {

@@ -1,4 +1,5 @@
 export * from "./chart-frame";
+export * from "./chart-responsive";
 export * from "./chart-tooltip";
 export * from "./bar-column-chart";
 export * from "./line-area-chart";

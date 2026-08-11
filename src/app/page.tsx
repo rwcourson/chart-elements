@@ -2,8 +2,26 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { HeaderActions } from "@/components/ui/header-actions";
 import { Badge } from "@/components/ui/badge";
+import { catalogManifest } from "@/registry/catalog-manifest";
+import type { CatalogManifestEntry } from "@/registry/catalog-types";
+import { ChartFrame } from "@/components/charts/chart-frame";
+import { BarColumnChart } from "@/components/charts/bar-column-chart";
+import { LineAreaChart } from "@/components/charts/line-area-chart";
+import { PieDonutChart } from "@/components/charts/pie-donut-chart";
+import { ModernCard } from "@/components/cards/kpi-cards";
+import {
+  salesByRegion,
+  stackedSeries,
+  partToWhole,
+  kpiMetrics,
+} from "@/lib/sample-data";
 
 export default function HomePage() {
+  const entries = catalogManifest as readonly CatalogManifestEntry[];
+  const verifiedCount = entries.filter((entry) => entry.status === "verified").length;
+  const totalCount = entries.length;
+  const categories = new Set(entries.map((entry) => entry.category)).size;
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <div
@@ -14,7 +32,7 @@ export default function HomePage() {
         }}
       />
       <header
-        className="relative z-10 mx-auto flex max-w-5xl items-center justify-between py-5"
+        className="relative z-10 mx-auto flex max-w-6xl items-center justify-between py-5"
         style={{ paddingInline: "var(--page-gutter)" }}
       >
         <div className="text-[15px] font-bold tracking-[-0.02em] text-accent">
@@ -23,11 +41,11 @@ export default function HomePage() {
         <HeaderActions />
       </header>
       <main
-        className="relative z-10 mx-auto flex max-w-5xl flex-col gap-8 pb-24 pt-16"
+        className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 pb-24 pt-12 sm:pt-16"
         style={{ paddingInline: "var(--page-gutter)" }}
       >
         <Badge variant="secondary" className="w-fit">
-          Next.js · Tailwind · Berry palette
+          Next.js · Tailwind · Theme-aware
         </Badge>
         <div className="max-w-2xl space-y-4">
           <h1 className="text-[clamp(32px,3.4vw,40px)] font-bold leading-[1.15] tracking-[-0.03em]">
@@ -35,7 +53,7 @@ export default function HomePage() {
           </h1>
           <p className="text-[17px] leading-relaxed text-muted-foreground">
             A plug-and-play suite of clean chart, KPI, map, slicer, and analytical
-            components — tuned to the B&amp;G Time design system.
+            components — tuned to a flexible, token-driven design system.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -46,10 +64,59 @@ export default function HomePage() {
             Open gallery <ArrowRight className="h-4 w-4" />
           </Link>
           <span className="text-[14px] text-muted-foreground">
-            336 visuals across 37 categories
+            {verifiedCount} verified · {totalCount} total across {categories} categories
           </span>
         </div>
-        <div className="grid gap-4 pt-6 sm:grid-cols-3">
+
+        <section aria-labelledby="hero-previews-heading" className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2
+                id="hero-previews-heading"
+                className="text-[15px] font-semibold tracking-[-0.01em]"
+              >
+                Live previews
+              </h2>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                The same refined-neutral marks you get in the gallery — light and dark.
+              </p>
+            </div>
+            <Link
+              href="/gallery"
+              className="text-[13px] font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Browse all visuals
+            </Link>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartFrame title="Revenue by region" description="Clustered columns" height={260}>
+              <BarColumnChart
+                data={salesByRegion}
+                categoryKey="name"
+                seriesKeys={["sales", "profit"]}
+                variant="clustered-column"
+              />
+            </ChartFrame>
+            <ChartFrame title="Monthly mix" description="Stacked area" height={260}>
+              <LineAreaChart
+                data={stackedSeries}
+                categoryKey="name"
+                seriesKeys={["product", "service", "other"]}
+                variant="stacked-area"
+              />
+            </ChartFrame>
+            <ChartFrame title="Segment share" description="Donut" height={260}>
+              <PieDonutChart data={partToWhole} variant="donut" innerLabel="Share" />
+            </ChartFrame>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {kpiMetrics.slice(0, 2).map((metric) => (
+                <ModernCard key={metric.label} metric={metric} size="sm" />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-4 sm:grid-cols-3">
           {[
             ["Charts & statistical", "Bar, line, sankey, radar, violin, financial…"],
             ["KPI & tables", "Cards, gauges, matrices, sparklines, scorecards"],
@@ -57,7 +124,7 @@ export default function HomePage() {
           ].map(([title, body]) => (
             <div
               key={title}
-              className="rounded-[var(--radius-panel)] border border-border bg-card/90 p-5 shadow-[var(--overlay-shadow)]"
+              className="rounded-[var(--radius-panel)] border border-border bg-card/90 p-5 shadow-[var(--card-shadow)]"
             >
               <div className="text-[15px] font-semibold tracking-[-0.01em]">
                 {title}
